@@ -1,0 +1,33 @@
+Package: glyph
+Title: A Next-Generation Grammar of Interactive Graphics
+Version: 0.1.0
+Authors@R: person("Joash Joshua", "Ayo", role = c("aut", "cre"),
+    email = "joashjoshua789@gmail.com")
+Description: A modern visualization grammar that treats interactivity, animation,
+    and composable layouts as first-class concepts rather than afterthoughts.
+    Designed to address key limitations of existing grammars: native hover, click,
+    and zoom events, WebGL-accelerated rendering for large datasets, built-in
+    multi-plot composition, and a token-based theming system. Renders to
+    interactive HTML widgets via 'D3.js' or static SVG from a single
+    declarative specification.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Depends: R (>= 4.1.0)
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
+Config/testthat/edition: 3
+Imports:
+    htmlwidgets (>= 1.6.0),
+    jsonlite (>= 1.8.0),
+    rlang (>= 1.1.0),
+    cli (>= 3.6.0),
+    grDevices,
+    utils,
+    tools
+Suggests:
+    testthat (>= 3.0.0),
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr
+URL: https://github.com/josh45-source/glyph
+BugReports: https://github.com/josh45-source/glyph/issues
