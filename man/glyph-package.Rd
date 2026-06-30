@@ -5,7 +5,7 @@
 \alias{glyph-package}
 \title{glyph: A Next-Generation Grammar of Interactive Graphics}
 \description{
-A modern visualization grammar that treats interactivity, animation, and composable layouts as first-class concepts rather than afterthoughts. Designed to address key limitations of existing grammars: native hover, click, and zoom events, WebGL-accelerated rendering for large datasets, built-in multi-plot composition, and a token-based theming system. Renders to interactive HTML widgets via 'D3.js' or static SVG from a single declarative specification.
+A modern visualization grammar that treats interactivity, animation, and composable layouts as first-class concepts rather than afterthoughts. Designed to address key limitations of existing grammars: native hover, click, and zoom events, 'WebGL'-accelerated rendering for large datasets, built-in multi-plot composition, and a token-based theming system. Renders to interactive HTML widgets via 'D3.js' or static SVG from a single declarative specification.
 }
 \seealso{
 Useful links:
