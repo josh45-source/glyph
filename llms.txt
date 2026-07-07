@@ -1,0 +1,212 @@
+# glyph
+
+### The grammar of graphics, rebuilt for a web that moves.
+
+**glyph** is a next-generation grammar of interactive graphics for R. It
+treats interactivity, animation, and composable layouts as first-class
+concepts — not afterthoughts bolted on via a chain of extension
+packages.
+
+``` r
+
+install.packages("glyph")
+```
+
+  
+
+## ggplot2 vs glyph
+
+Same plot. One needs `plotly`, `ggrepel`, and a paragraph of `theme()`
+calls to get interactive, styled, and readable. The other needs a pipe.
+
+[TABLE]
+
+No `aes()`. No [`factor()`](https://rdrr.io/r/base/factor.html)
+coercion. No `+` juggling geometry, scales, and theme in one flat
+expression. And you get zoom, brush, and hover for free.
+
+  
+
+## Why glyph?
+
+**Interactivity is grammar, not glue.** Tooltips, zoom, brushing, and
+linked views are declared right in the pipeline with
+[`interact()`](https://josh45-source.github.io/glyph/reference/interact.md)
+and
+[`selection()`](https://josh45-source.github.io/glyph/reference/selection.md)
+— not stapled on afterward with `plotly::ggplotly()`.
+
+**The spec is the plot.** Every glyph visualization is a pure,
+inspectable data structure. Serialize it to JSON, export it to Vega-Lite
+with
+[`to_vegalite()`](https://josh45-source.github.io/glyph/reference/to_vegalite.md),
+or
+[`compile()`](https://josh45-source.github.io/glyph/reference/compile.md)
+it to HTML, SVG, canvas, or WebGL — without touching the code that built
+it.
+
+**Composition is built in.** Multi-plot layouts, marginal distributions,
+inset plots, and linked brushing across panels ship in
+[`compose()`](https://josh45-source.github.io/glyph/reference/compose.md),
+[`marginals()`](https://josh45-source.github.io/glyph/reference/marginals.md),
+and
+[`inset()`](https://josh45-source.github.io/glyph/reference/inset.md) —
+no `patchwork`, no `ggExtra`.
+
+**Tokens, not 90 theme arguments.**
+[`theme_tokens()`](https://josh45-source.github.io/glyph/reference/theme_tokens.md)
+takes a handful of design tokens — font, background, grid — and cascades
+foreground, grid, and title colors automatically for contrast.
+
+**Animation is a pipeline step.**
+[`animate()`](https://josh45-source.github.io/glyph/reference/animate.md)
+declares transitions, stagger, and easing right where the plot is built,
+with no separate `gganimate` render pass.
+
+  
+
+## Installation
+
+``` r
+
+install.packages("glyph")
+
+# Development version
+# remotes::install_github("josh45-source/glyph")
+```
+
+  
+
+## Getting Started
+
+``` r
+
+library(glyph)
+
+glyph(mtcars, x = wt, y = mpg) |>
+  mark_point(color = cyl, size = hp) |>
+  interact(tooltip = "{cyl} cyl, {mpg} mpg at {wt} tons", zoom = TRUE) |>
+  scale("y", zero = TRUE, label = "Miles per gallon") |>
+  theme_tokens(preset = "dark") |>
+  titles(title = "Motor Trend Cars", subtitle = "Weight vs fuel efficiency")
+```
+
+Read the [Getting Started
+guide](https://josh45-source.github.io/glyph/articles/comparison.md) for
+a full side-by-side tour of glyph’s grammar against ggplot2, or browse
+the [function
+reference](https://josh45-source.github.io/glyph/reference/index.md) to
+see everything glyph can do.
+
+# Package index
+
+## Core
+
+Build and inspect the visualization spec.
+
+- [`glyph()`](https://josh45-source.github.io/glyph/reference/glyph.md)
+  : Create a Glyph Visualization
+- [`print(`*`<glyph_spec>`*`)`](https://josh45-source.github.io/glyph/reference/print.glyph_spec.md)
+  : Auto-render when printed (like ggplot2)
+
+## Marks
+
+Geometric layers that draw data onto the plot.
+
+- [`marks`](https://josh45-source.github.io/glyph/reference/marks.md) :
+  Visual Marks
+- [`mark_area()`](https://josh45-source.github.io/glyph/reference/mark_area.md)
+  : Add an area mark
+- [`mark_bar()`](https://josh45-source.github.io/glyph/reference/mark_bar.md)
+  : Add a bar mark
+- [`mark_line()`](https://josh45-source.github.io/glyph/reference/mark_line.md)
+  : Add a line mark
+- [`mark_link()`](https://josh45-source.github.io/glyph/reference/mark_link.md)
+  : Add a link/edge mark (for networks, sankeys, slope graphs)
+- [`mark_point()`](https://josh45-source.github.io/glyph/reference/mark_point.md)
+  : Add a point mark (scatterplot)
+- [`mark_ribbon()`](https://josh45-source.github.io/glyph/reference/mark_ribbon.md)
+  : Add a ribbon/band mark (for confidence intervals, ranges)
+- [`mark_rule()`](https://josh45-source.github.io/glyph/reference/mark_rule.md)
+  : Add a rule (reference line) mark
+- [`mark_text()`](https://josh45-source.github.io/glyph/reference/mark_text.md)
+  : Add a text/label mark
+
+## Interactivity
+
+Tooltips, zoom, brushing, and linked selections.
+
+- [`interactivity`](https://josh45-source.github.io/glyph/reference/interactivity.md)
+  : First-Class Interactivity
+- [`interact()`](https://josh45-source.github.io/glyph/reference/interact.md)
+  : Add interactive behaviors to a glyph spec
+- [`selection()`](https://josh45-source.github.io/glyph/reference/selection.md)
+  : Add a selection parameter (advanced)
+
+## Animation
+
+Transitions and entrance/exit animation.
+
+- [`animation`](https://josh45-source.github.io/glyph/reference/animation.md)
+  : Animation Grammar
+- [`animate()`](https://josh45-source.github.io/glyph/reference/animate.md)
+  : Add animation/transition behavior
+
+## Scales
+
+Control how data maps to visual properties.
+
+- [`scale()`](https://josh45-source.github.io/glyph/reference/scale.md)
+  : Define a scale for an aesthetic channel
+- [`scale_color()`](https://josh45-source.github.io/glyph/reference/scales.md)
+  [`scale_log()`](https://josh45-source.github.io/glyph/reference/scales.md)
+  [`scale_time()`](https://josh45-source.github.io/glyph/reference/scales.md)
+  : Scales
+
+## Theming
+
+Token-based theme system and plot titles.
+
+- [`theming`](https://josh45-source.github.io/glyph/reference/theming.md)
+  : Token-Based Theming
+- [`theme_tokens()`](https://josh45-source.github.io/glyph/reference/theme_tokens.md)
+  : Set theme tokens
+- [`titles()`](https://josh45-source.github.io/glyph/reference/titles.md)
+  : Add a title, subtitle, or caption
+
+## Layout
+
+Multi-plot composition and auxiliary panels.
+
+- [`layout`](https://josh45-source.github.io/glyph/reference/layout.md)
+  : Layout Composition
+- [`compose()`](https://josh45-source.github.io/glyph/reference/compose.md)
+  : Compose multiple glyph specs into a layout
+- [`marginals()`](https://josh45-source.github.io/glyph/reference/marginals.md)
+  : Add a marginal plot (histogram/density on axes)
+- [`inset()`](https://josh45-source.github.io/glyph/reference/inset.md)
+  : Add an inset plot
+- [`facet()`](https://josh45-source.github.io/glyph/reference/facet.md)
+  : Facet a plot by one or two variables
+
+## Rendering
+
+Compile the spec and render or export it.
+
+- [`rendering`](https://josh45-source.github.io/glyph/reference/rendering.md)
+  : Rendering Pipeline
+- [`compile()`](https://josh45-source.github.io/glyph/reference/compile.md)
+  : Compile a glyph spec to a resolved representation
+- [`render()`](https://josh45-source.github.io/glyph/reference/render.md)
+  : Render a glyph spec as an htmlwidget
+- [`export()`](https://josh45-source.github.io/glyph/reference/export.md)
+  : Export to various formats
+- [`to_vegalite()`](https://josh45-source.github.io/glyph/reference/to_vegalite.md)
+  : Export the spec as Vega-Lite JSON (interop)
+
+# Articles
+
+### Get started
+
+- [glyph vs ggplot2: Side-by-Side
+  Comparison](https://josh45-source.github.io/glyph/articles/comparison.md):
