@@ -22,12 +22,14 @@ home:
 
 navbar:
   structure:
-    left: [intro, reference, articles, news]
+    left: [reference, articles, news]
     right: [search, github, cran]
   components:
     articles:
       text: Articles
       menu:
+      - text: "Getting Started"
+        href: articles/getting-started.html
       - text: "glyph vs ggplot2: Side-by-Side Comparison"
         href: articles/comparison.html
     github:
@@ -100,6 +102,7 @@ articles:
 - title: Get started
   navbar: ~
   contents:
+  - getting-started
   - comparison
 
 footer:

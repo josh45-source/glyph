@@ -153,6 +153,7 @@ glyph(mtcars, x = wt, y = mpg) |>
   titles(title = "Motor Trend Cars", subtitle = "Weight vs fuel efficiency")
 ```
 
-Read the [Getting Started guide](articles/comparison.html) for a full
-side-by-side tour of glyph's grammar against ggplot2, or browse the
-[function reference](reference/index.html) to see everything glyph can do.
+Read the [Getting Started guide](articles/getting-started.html) for live,
+interactive examples, the [side-by-side comparison](articles/comparison.html)
+against ggplot2, or browse the [function reference](reference/index.html) to
+see everything glyph can do.

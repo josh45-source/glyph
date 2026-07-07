@@ -1,0 +1,114 @@
+---
+title: "Getting Started with glyph"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting Started with glyph}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 4.5
+)
+```
+
+```{r setup}
+library(glyph)
+```
+
+This vignette walks through glyph's core grammar with live, interactive
+output. Every plot below is a real `glyph_spec` built with the package and
+rendered to an actual D3-backed htmlwidget — not a screenshot.
+
+One thing worth knowing up front: printing a `glyph_spec` at the console
+auto-renders it (like a ggplot2 plot), but that auto-render only fires in an
+interactive R session. Inside a vignette or pkgdown article the code runs
+non-interactively, so each example below ends the pipeline with an explicit
+[`render()`](../reference/render.html) call to produce the widget.
+
+## 1. A basic scatterplot
+
+No `aes()`, no `factor()` coercion — aesthetic mappings are just bare column
+names passed straight to [`glyph()`](../reference/glyph.html) and
+[`mark_point()`](../reference/mark_point.html).
+
+```{r}
+glyph(mtcars, x = wt, y = mpg) |>
+  mark_point(color = cyl) |>
+  render()
+```
+
+## 2. Tooltips and hover, declared in the pipeline
+
+Interactivity is grammar, not glue. [`interact()`](../reference/interact.html)
+turns on tooltips and a hover effect right where the plot is built, and
+[`titles()`](../reference/titles.html) adds a title in the same pipe — no
+`ggplotly()` conversion step, no lost formatting.
+
+```{r}
+glyph(mtcars, x = wt, y = mpg) |>
+  mark_point(color = cyl) |>
+  interact(tooltip = TRUE, hover = "enlarge") |>
+  titles(title = "Motor Trend Cars") |>
+  render()
+```
+
+Hover over a point to see it enlarge; hover longer to see the tooltip.
+
+## 3. Animated bar chart
+
+[`animate()`](../reference/animate.html) declares a transition as part of
+the spec. `stagger` offsets each bar's entrance animation so they draw in
+sequence rather than all at once.
+
+```{r}
+glyph(mtcars, x = cyl, y = mpg) |>
+  mark_bar() |>
+  animate(transition = "slide", stagger = 50) |>
+  render()
+```
+
+Reload this page (or re-run the chunk in an R session) to see the bars
+slide in.
+
+## 4. Token-based dark theme
+
+Instead of ggplot2's dozens of individual `theme()` arguments,
+[`theme_tokens()`](../reference/theme_tokens.html) takes a small preset (or
+individual tokens like `bg`, `font`, `accent`) and cascades foreground, grid,
+and title colors automatically for contrast.
+
+```{r}
+glyph(mtcars, x = wt, y = mpg) |>
+  mark_point(color = cyl) |>
+  interact(tooltip = TRUE) |>
+  theme_tokens(preset = "dark") |>
+  titles(title = "Dark Theme Example") |>
+  render()
+```
+
+## 5. Composed multi-plot layout
+
+[`compose()`](../reference/compose.html) arranges multiple `glyph_spec`
+objects into a single layout — here, two scatterplots side by side — without
+reaching for `patchwork` or `cowplot`. Composed layouts are rendered the
+same way as a single spec: pass the layout to `render()`.
+
+```{r}
+p1 <- glyph(mtcars, x = wt, y = mpg) |> mark_point(color = cyl)
+p2 <- glyph(mtcars, x = hp, y = mpg) |> mark_point(color = cyl)
+
+compose(p1, p2, type = "hstack") |>
+  render()
+```
+
+## Where to next
+
+- Browse the [function reference](../reference/index.html) for every mark,
+  scale, and layout primitive glyph provides.
+- Read [glyph vs ggplot2: Side-by-Side Comparison](comparison.html) for a
+  broader tour of how the two grammars differ.
