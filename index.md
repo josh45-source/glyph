@@ -92,8 +92,9 @@ glyph(mtcars, x = wt, y = mpg) |>
 ```
 
 Read the [Getting Started
-guide](https://josh45-source.github.io/glyph/articles/comparison.md) for
-a full side-by-side tour of glyph’s grammar against ggplot2, or browse
-the [function
+guide](https://josh45-source.github.io/glyph/articles/getting-started.md)
+for live, interactive examples, the [side-by-side
+comparison](https://josh45-source.github.io/glyph/articles/comparison.md)
+against ggplot2, or browse the [function
 reference](https://josh45-source.github.io/glyph/reference/index.md) to
 see everything glyph can do.
