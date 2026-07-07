@@ -29,5 +29,5 @@ Suggests:
     knitr,
     rmarkdown
 VignetteBuilder: knitr
-URL: https://github.com/josh45-source/glyph
+URL: https://github.com/josh45-source/glyph, https://josh45-source.github.io/glyph/
 BugReports: https://github.com/josh45-source/glyph/issues

@@ -5,3 +5,8 @@
 ^LICENSE\.md$
 ^README\.md$
 ^CRAN-SUBMISSION$
+^docs$
+^_pkgdown\.yml$
+^pkgdown$
+^index\.md$
+^\.github$

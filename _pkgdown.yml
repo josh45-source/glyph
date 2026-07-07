@@ -1,0 +1,108 @@
+url: https://josh45-source.github.io/glyph/
+
+template:
+  bootstrap: 5
+  bootswatch: flatly
+  bslib:
+    base_font: {google: "Inter"}
+    heading_font: {google: "Inter"}
+    code_font: {google: "Fira Code"}
+  opengraph:
+    twitter:
+      creator: "@joshayo"
+      card: summary_large_image
+
+home:
+  title: "glyph: A Next-Generation Grammar of Interactive Graphics"
+  description: >
+    A modern visualization grammar for R that treats interactivity, animation,
+    and composable layouts as first-class concepts — not afterthoughts.
+  sidebar:
+    structure: [links, license, community, citation, authors, dev]
+
+navbar:
+  structure:
+    left: [intro, reference, articles, news]
+    right: [search, github, cran]
+  components:
+    articles:
+      text: Articles
+      menu:
+      - text: "glyph vs ggplot2: Side-by-Side Comparison"
+        href: articles/comparison.html
+    github:
+      icon: fa-github
+      href: https://github.com/josh45-source/glyph
+      aria-label: GitHub
+    cran:
+      icon: fa-box-archive
+      href: https://cran.r-project.org/package=glyph
+      aria-label: CRAN
+
+reference:
+- title: Core
+  desc: Build and inspect the visualization spec.
+  contents:
+  - glyph
+  - print.glyph_spec
+
+- title: Marks
+  desc: Geometric layers that draw data onto the plot.
+  contents:
+  - marks
+  - starts_with("mark_")
+
+- title: Interactivity
+  desc: Tooltips, zoom, brushing, and linked selections.
+  contents:
+  - interactivity
+  - interact
+  - selection
+
+- title: Animation
+  desc: Transitions and entrance/exit animation.
+  contents:
+  - animation
+  - animate
+
+- title: Scales
+  desc: Control how data maps to visual properties.
+  contents:
+  - scale
+  - scales
+
+- title: Theming
+  desc: Token-based theme system and plot titles.
+  contents:
+  - theming
+  - theme_tokens
+  - titles
+
+- title: Layout
+  desc: Multi-plot composition and auxiliary panels.
+  contents:
+  - layout
+  - compose
+  - marginals
+  - inset
+  - facet
+
+- title: Rendering
+  desc: Compile the spec and render or export it.
+  contents:
+  - rendering
+  - compile
+  - render
+  - export
+  - to_vegalite
+
+articles:
+- title: Get started
+  navbar: ~
+  contents:
+  - comparison
+
+footer:
+  structure:
+    left: developed_by
+    right: built_with

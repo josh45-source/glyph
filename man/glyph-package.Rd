@@ -11,6 +11,7 @@ A modern visualization grammar that treats interactivity, animation, and composa
 Useful links:
 \itemize{
   \item \url{https://github.com/josh45-source/glyph}
+  \item \url{https://josh45-source.github.io/glyph/}
   \item Report bugs at \url{https://github.com/josh45-source/glyph/issues}
 }
 
