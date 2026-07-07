@@ -58,7 +58,7 @@ if (engine == "auto") {
     `$schema` = "glyph/v0.1",
     width     = width %||% 600,
     height    = height %||% 400,
-    data      = list(values = spec$data),
+    data      = list(values = df_to_records(spec$data)),
     marks     = resolved_marks,
     scales    = resolved_scales,
     coords    = spec$coords,
@@ -149,6 +149,19 @@ resolve_mark <- function(mark, global_data, global_mappings) {
   )
 }
 
+#' Convert a data.frame to a list of row-records
+#' @description htmlwidgets serializes embedded \code{x} payloads with
+#'   \code{jsonlite}'s \code{dataframe = "columns"} default, which would turn
+#'   a data.frame into one JSON object per column instead of one JSON object
+#'   per row. The D3 renderer expects an array of row objects (so it can call
+#'   \code{data.map(...)} etc.), so convert explicitly here rather than
+#'   relying on the data.frame passing through untouched.
+#' @noRd
+df_to_records <- function(data) {
+  if (is.null(data) || nrow(data) == 0) return(list())
+  lapply(seq_len(nrow(data)), function(i) as.list(data[i, , drop = FALSE]))
+}
+
 #' @noRd
 infer_field_type <- function(x) {
   if (inherits(x, c("Date", "POSIXt"))) return("temporal")
@@ -205,7 +218,16 @@ render <- function(spec, width = NULL, height = NULL) {
     x       = list(spec = spec$spec),
     width   = width,
     height  = height,
-    package = "glyph"
+    package = "glyph",
+    sizingPolicy = htmlwidgets::sizingPolicy(
+      defaultWidth  = spec$spec$width  %||% 600,
+      defaultHeight = spec$spec$height %||% 400,
+      viewer.fill   = TRUE,
+      browser.fill  = TRUE,
+      knitr.figure  = FALSE,
+      knitr.defaultWidth  = "100%",
+      knitr.defaultHeight = paste0(spec$spec$height %||% 400, "px")
+    )
   )
 }
 
