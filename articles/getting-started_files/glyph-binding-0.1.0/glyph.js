@@ -1,6 +1,8 @@
 // glyph.js — D3.js rendering engine for the glyph R package
 // This is the htmlwidgets binding that compiles glyph specs into interactive SVG
 
+console.log("glyph widget loaded");
+
 HTMLWidgets.widget({
   name: "glyph",
   type: "output",
@@ -12,6 +14,27 @@ HTMLWidgets.widget({
 
     return {
       renderValue: function(x) {
+        try {
+          doRender(x);
+        } catch (err) {
+          console.error("glyph widget renderValue failed:", err);
+          el.innerHTML = "";
+          const msg = document.createElement("pre");
+          msg.style.color = "#b00020";
+          msg.style.fontFamily = "monospace";
+          msg.style.fontSize = "12px";
+          msg.style.whiteSpace = "pre-wrap";
+          msg.textContent = "glyph render error: " + (err && err.message ? err.message : err);
+          el.appendChild(msg);
+        }
+      },
+
+      resize: function(newW, newH) {
+        if (spec) this.renderValue({ spec });
+      }
+    };
+
+    function doRender(x) {
         spec = x.spec;
         const theme = spec.theme || {};
         const W = spec.width || width;
@@ -92,12 +115,7 @@ HTMLWidgets.widget({
         if (spec.animate) {
           applyAnimation(plotArea, spec.animate);
         }
-      },
-
-      resize: function(newW, newH) {
-        if (spec) this.renderValue({ spec });
-      }
-    };
+    }
   }
 });
 
