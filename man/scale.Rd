@@ -14,7 +14,8 @@ scale(
   zero = FALSE,
   reverse = FALSE,
   label = NULL,
-  format = NULL
+  format = NULL,
+  base = NULL
 )
 }
 \arguments{
@@ -38,6 +39,8 @@ scale(
 \item{label}{Axis/legend label (NULL for auto from column name)}
 
 \item{format}{Format string for tick labels (e.g. "$.2f", "\%b \%Y")}
+
+\item{base}{Log base, used when \code{type = "log"} (default 10 if NULL)}
 }
 \value{
 Modified glyph_spec

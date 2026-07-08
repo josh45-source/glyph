@@ -18,6 +18,7 @@ NULL
 #' @param reverse Reverse the scale
 #' @param label Axis/legend label (NULL for auto from column name)
 #' @param format Format string for tick labels (e.g. "$.2f", "%b %Y")
+#' @param base Log base, used when \code{type = "log"} (default 10 if NULL)
 #' @return Modified glyph_spec
 #' @export
 #'
@@ -29,7 +30,7 @@ NULL
 scale <- function(spec, aesthetic, type = "auto",
                   domain = NULL, range = NULL,
                   nice = TRUE, zero = FALSE, reverse = FALSE,
-                  label = NULL, format = NULL) {
+                  label = NULL, format = NULL, base = NULL) {
   stopifnot(inherits(spec, "glyph_spec"))
 
   sc <- list(
@@ -41,7 +42,8 @@ scale <- function(spec, aesthetic, type = "auto",
     zero      = zero,
     reverse   = reverse,
     label     = label,
-    format    = format
+    format    = format,
+    base      = base
   )
 
   spec$scales[[aesthetic]] <- sc
@@ -66,7 +68,7 @@ scale_color <- function(spec, palette = "Tableau10", ...) {
 #' @return Modified \code{glyph_spec} object
 #' @export
 scale_log <- function(spec, aesthetic = "y", base = 10, ...) {
-  scale(spec, aesthetic, type = "log", ...)
+  scale(spec, aesthetic, type = "log", base = base, ...)
 }
 
 #' @describeIn scales Time/date axis

@@ -66,6 +66,7 @@ if (engine == "auto") {
     interact  = spec$interact,
     animate   = spec$animate,
     theme     = spec$theme,
+    layout    = resolve_layout(spec$layout, engine),
     engine    = engine
   )
 
@@ -196,6 +197,22 @@ resolve_scales <- function(scales, mappings, data) {
     }
   }
   resolved
+}
+
+#' Resolve the marginals/inset layout attached to a spec
+#' @description \code{marginals()} and \code{inset()} both stash their
+#'   config on \code{spec$layout}. \code{inset()} additionally embeds a full
+#'   nested \code{glyph_spec} (with unresolved quosures), which must be
+#'   compiled recursively before it can be serialized to JSON.
+#' @noRd
+resolve_layout <- function(layout, engine) {
+  if (is.null(layout)) return(NULL)
+
+  if (identical(layout$type, "inset")) {
+    layout$inset <- compile(layout$inset, engine = engine)$spec
+  }
+
+  layout
 }
 
 # ---- Display methods ---------------------------------------------------------

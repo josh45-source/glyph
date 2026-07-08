@@ -10,9 +10,10 @@ library(glyph)
 #>     scale
 ```
 
-This vignette walks through glyph’s core grammar with live, interactive
+This vignette walks through glyph’s grammar with live, interactive
 output. Every plot below is a real `glyph_spec` built with the package
 and rendered to an actual D3-backed htmlwidget — not a screenshot.
+Hover, click, brush, and zoom them right here in the page.
 
 One thing worth knowing up front: printing a `glyph_spec` at the console
 auto-renders it (like a ggplot2 plot), but that auto-render only fires
@@ -22,23 +23,9 @@ with an explicit
 [`render()`](https://josh45-source.github.io/glyph/reference/render.md)
 call to produce the widget.
 
-## 1. A basic scatterplot
+All examples use `mtcars` so you can copy-paste and run them yourself.
 
-No [`aes()`](https://ggplot2.tidyverse.org/reference/aes.html), no
-[`factor()`](https://rdrr.io/r/base/factor.html) coercion — aesthetic
-mappings are just bare column names passed straight to
-[`glyph()`](https://josh45-source.github.io/glyph/reference/glyph.md)
-and
-[`mark_point()`](https://josh45-source.github.io/glyph/reference/mark_point.md).
-
-``` r
-
-glyph(mtcars, x = wt, y = mpg) |>
-  mark_point(color = cyl) |>
-  render()
-```
-
-## 2. Tooltips and hover, declared in the pipeline
+## 1. Tooltips and hover, declared in the pipeline
 
 Interactivity is grammar, not glue.
 [`interact()`](https://josh45-source.github.io/glyph/reference/interact.md)
@@ -57,9 +44,9 @@ glyph(mtcars, x = wt, y = mpg) |>
   render()
 ```
 
-Hover over a point to see it enlarge; hover longer to see the tooltip.
+Hover over a point to see it enlarge; pause on it to see the tooltip.
 
-## 3. Animated bar chart
+## 2. Animated bar chart
 
 [`animate()`](https://josh45-source.github.io/glyph/reference/animate.md)
 declares a transition as part of the spec. `stagger` offsets each bar’s
@@ -76,7 +63,7 @@ glyph(mtcars, x = cyl, y = mpg) |>
 Reload this page (or re-run the chunk in an R session) to see the bars
 slide in.
 
-## 4. Token-based dark theme
+## 3. Token-based dark theme
 
 Instead of ggplot2’s dozens of individual
 [`theme()`](https://ggplot2.tidyverse.org/reference/theme.html)
@@ -96,23 +83,113 @@ glyph(mtcars, x = wt, y = mpg) |>
   render()
 ```
 
-## 5. Composed multi-plot layout
+## 4. Point labels with automatic collision avoidance
+
+[`mark_text()`](https://josh45-source.github.io/glyph/reference/mark_text.md)
+draws a label per point, and `smart_repel = TRUE` nudges overlapping
+labels apart so they stay readable — a first-class feature instead of a
+separate `ggrepel` dependency. `mtcars` stores car names as row names,
+so we promote them to a real column first.
+
+``` r
+
+mtcars_named <- data.frame(model = rownames(mtcars), mtcars, row.names = NULL)
+
+glyph(mtcars_named, x = wt, y = mpg) |>
+  mark_point(color = cyl) |>
+  mark_text(label = model, smart_repel = TRUE) |>
+  render()
+```
+
+## 5. Linked panels with crossfilter brushing
 
 [`compose()`](https://josh45-source.github.io/glyph/reference/compose.md)
 arranges multiple `glyph_spec` objects into a single layout — here, two
 scatterplots side by side — without reaching for `patchwork` or
-`cowplot`. Composed layouts are rendered the same way as a single spec:
-pass the layout to
-[`render()`](https://josh45-source.github.io/glyph/reference/render.md).
+`cowplot`. With `interact(brush = TRUE)` on each panel and
+`linked_selections = TRUE` on the composed layout, brushing points in
+one panel highlights the *same rows* in the other.
 
 ``` r
 
-p1 <- glyph(mtcars, x = wt, y = mpg) |> mark_point(color = cyl)
-p2 <- glyph(mtcars, x = hp, y = mpg) |> mark_point(color = cyl)
+p1 <- glyph(mtcars, x = wt, y = mpg) |>
+  mark_point(color = cyl) |>
+  interact(brush = TRUE)
 
-compose(p1, p2, type = "hstack") |>
+p2 <- glyph(mtcars, x = hp, y = mpg) |>
+  mark_point(color = cyl) |>
+  interact(brush = TRUE)
+
+compose(p1, p2, type = "hstack", linked_selections = TRUE) |>
   render()
 ```
+
+Drag a rectangle over a few points in either panel — the corresponding
+cars highlight in both.
+
+## 6. Faceting
+
+[`facet()`](https://josh45-source.github.io/glyph/reference/facet.md)
+splits a plot into small multiples by one or two variables, each with
+its own panel — like ggplot2’s
+[`facet_wrap()`](https://ggplot2.tidyverse.org/reference/facet_wrap.html),
+built into the same pipeline instead of a separate layer.
+
+``` r
+
+glyph(mtcars, x = wt, y = mpg) |>
+  mark_point(color = cyl) |>
+  facet(cols = cyl) |>
+  render()
+```
+
+## 7. Marginal distributions
+
+[`marginals()`](https://josh45-source.github.io/glyph/reference/marginals.md)
+adds histograms, density curves, or boxplots along the axes — a common
+pattern that normally needs `ggExtra` or manual grid manipulation in
+ggplot2.
+
+``` r
+
+glyph(mtcars, x = wt, y = mpg) |>
+  mark_point(color = cyl) |>
+  marginals(x = "histogram", y = "density") |>
+  render()
+```
+
+## 8. Inset plots
+
+[`inset()`](https://josh45-source.github.io/glyph/reference/inset.md)
+places a second, smaller glyph_spec inside a corner of the main plot —
+useful for a detail view or a different breakdown of the same data,
+without any manual viewport math.
+
+``` r
+
+main_plot <- glyph(mtcars, x = wt, y = mpg) |> mark_point(color = cyl)
+detail_plot <- glyph(mtcars, x = cyl, y = mpg) |> mark_bar()
+
+inset(main_plot, detail_plot, position = "top-right") |>
+  render()
+```
+
+## 9. Keyframe (“morph”) animation
+
+`animate(by = ..., transition = "morph")` cycles the plot through
+subsets of the data grouped by a field, transitioning marks smoothly
+between states — similar in spirit to `gganimate::transition_states()`,
+but with a built-in play/pause control and no rendering-to-GIF step.
+
+``` r
+
+glyph(mtcars, x = wt, y = mpg) |>
+  mark_point(size = hp, color = cyl) |>
+  animate(by = gear, transition = "morph", duration = 800) |>
+  render()
+```
+
+Use the play/pause button to step through each `gear` group.
 
 ## Where to next
 
@@ -121,4 +198,5 @@ compose(p1, p2, type = "hstack") |>
   for every mark, scale, and layout primitive glyph provides.
 - Read [glyph vs ggplot2: Side-by-Side
   Comparison](https://josh45-source.github.io/glyph/articles/comparison.md)
-  for a broader tour of how the two grammars differ.
+  for a broader tour of how the two grammars differ, including more live
+  examples.

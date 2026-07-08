@@ -1,14 +1,17 @@
+## Resubmission
+
+This is a patch release (0.1.1) fixing a critical rendering bug
+in 0.1.0 where htmlwidget output was blank due to incorrect
+data serialization format for the D3.js frontend.
+
 ## Test environments
 
-* local [YOUR OS], R [YOUR VERSION]
+* local Windows 11, R 4.5.2
 * win-builder (R-devel)
-* R-hub: Ubuntu Linux, Windows Server
 
 ## R CMD check results
 
-0 errors | 0 warnings | 1 note
-
-* This is a new submission.
+0 errors | 0 warnings | 0 notes
 
 ## Downstream dependencies
 

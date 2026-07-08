@@ -1,3 +1,15 @@
+# glyph 0.1.1
+
+* Fixed critical rendering bug where interactive plots displayed as blank
+  in RStudio viewer, R Markdown documents, and Shiny apps. Data was being
+  serialized in column-oriented format instead of the row-records format
+  expected by the 'D3.js' frontend.
+* Added error surfacing in the htmlwidget so JavaScript failures display
+  a visible error message instead of a silent blank div.
+* Added sizing policy for better default widget dimensions in R Markdown
+  and pkgdown contexts.
+
+
 # glyph 0.1.0
 
 * Initial CRAN release.

@@ -10,7 +10,7 @@ Source:
 [`DESCRIPTION`](https://github.com/josh45-source/glyph/blob/HEAD/DESCRIPTION)
 
 Ayo J (2026). *glyph: A Next-Generation Grammar of Interactive
-Graphics*. R package version 0.1.0,
+Graphics*. R package version 0.1.1,
 https://josh45-source.github.io/glyph/,
 <https://github.com/josh45-source/glyph>.
 
@@ -18,6 +18,6 @@ https://josh45-source.github.io/glyph/,
       title = {glyph: A Next-Generation Grammar of Interactive Graphics},
       author = {Joash Joshua Ayo},
       year = {2026},
-      note = {R package version 0.1.0, https://josh45-source.github.io/glyph/},
+      note = {R package version 0.1.1, https://josh45-source.github.io/glyph/},
       url = {https://github.com/josh45-source/glyph},
     }

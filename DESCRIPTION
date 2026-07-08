@@ -1,6 +1,6 @@
 Package: glyph
 Title: A Next-Generation Grammar of Interactive Graphics
-Version: 0.1.0
+Version: 0.1.1
 Authors@R: person("Joash Joshua", "Ayo", role = c("aut", "cre"),
     email = "joashjoshua789@gmail.com")
 Description: A modern visualization grammar that treats interactivity, animation,
