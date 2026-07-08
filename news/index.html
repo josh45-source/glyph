@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">glyph</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -39,6 +39,12 @@
     </div>
 
     <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.1.1" id="glyph-011">glyph 0.1.1<a class="anchor" aria-label="anchor" href="#glyph-011"></a></h2>
+<ul><li>Fixed critical rendering bug where interactive plots displayed as blank in RStudio viewer, R Markdown documents, and Shiny apps. Data was being serialized in column-oriented format instead of the row-records format expected by the ‘D3.js’ frontend.</li>
+<li>Added error surfacing in the htmlwidget so JavaScript failures display a visible error message instead of a silent blank div.</li>
+<li>Added sizing policy for better default widget dimensions in R Markdown and pkgdown contexts.</li>
+</ul></div>
+    <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.1.0" id="glyph-010">glyph 0.1.0<a class="anchor" aria-label="anchor" href="#glyph-010"></a></h2><p class="text-muted">CRAN release: 2026-07-06</p>
 <ul><li>Initial CRAN release.</li>
 <li>Core spec builder with quosure-based aesthetic mappings (no <code>aes()</code> required).</li>
@@ -52,7 +58,8 @@
 <li>JSON spec export via <code><a href="../reference/export.html">export()</a></code> and Vega-Lite interoperability via <code><a href="../reference/to_vegalite.html">to_vegalite()</a></code>.</li>
 <li>D3.js v7 rendering engine via ‘htmlwidgets’.</li>
 </ul></div>
-  </main></div>
+  </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
+    </nav></aside></div>
 
 
     <footer><div class="pkgdown-footer-left">
@@ -60,7 +67,7 @@
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
     </footer></div>

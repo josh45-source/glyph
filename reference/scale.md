@@ -15,7 +15,8 @@ scale(
   zero = FALSE,
   reverse = FALSE,
   label = NULL,
-  format = NULL
+  format = NULL,
+  base = NULL
 )
 ```
 
@@ -61,6 +62,10 @@ scale(
 - format:
 
   Format string for tick labels (e.g. "\$.2f", "%b %Y")
+
+- base:
+
+  Log base, used when `type = "log"` (default 10 if NULL)
 
 ## Value
 

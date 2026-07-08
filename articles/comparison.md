@@ -271,3 +271,81 @@ Shiny - Animation is important (presentations, storytelling) - You’re
 working with large datasets (\>10K points) - You want a cleaner, more
 composable API - You need to export specs to JavaScript (Vega-Lite,
 D3) - Theme consistency across many plots matters (token system)
+
+------------------------------------------------------------------------
+
+## Live Examples
+
+The code above is illustrative — here are four of those exact patterns
+rendered for real, using `mtcars`. Every widget below is a live D3
+chart, not a screenshot; hover, click, brush, and zoom them the same way
+you would in your own R session.
+
+### Colored scatterplot
+
+The one-line color scale and label calls from section 1, rendered.
+
+``` r
+
+glyph(mtcars, x = wt, y = mpg) |>
+  mark_point(color = cyl, style = list(size = 6)) |>
+  scale_color("Set2") |>
+  scale("x", label = "Weight (1000 lbs)") |>
+  scale("y", label = "Miles per Gallon") |>
+  titles(title = "Motor Trend Cars") |>
+  theme_tokens(preset = "minimal") |>
+  render()
+```
+
+### Tooltip, zoom, and brush — no `ggplotly()` conversion
+
+The interactions from section 2, declared directly in the pipeline and
+fully preserved (unlike a lossy `ggplotly()` wrap).
+
+``` r
+
+glyph(mtcars, x = wt, y = mpg) |>
+  mark_point(color = cyl) |>
+  interact(
+    tooltip = "{cyl} cyl, {mpg} mpg at {wt} tons",
+    zoom = TRUE,
+    brush = TRUE,
+    hover = "enlarge"
+  ) |>
+  render()
+```
+
+### Linked dashboard panels
+
+The
+[`compose()`](https://josh45-source.github.io/glyph/reference/compose.md) +
+`linked_selections` pattern from section 4. Brush points in the left
+panel and watch the same cars highlight on the right.
+
+``` r
+
+p1 <- glyph(mtcars, x = wt, y = mpg) |>
+  mark_point(color = cyl) |>
+  interact(brush = TRUE)
+
+p2 <- glyph(mtcars, x = hp, y = mpg) |>
+  mark_point(color = cyl) |>
+  interact(brush = TRUE)
+
+compose(p1, p2, type = "hstack", linked_selections = TRUE) |>
+  render()
+```
+
+### Marginal distributions
+
+The one-line
+[`marginals()`](https://josh45-source.github.io/glyph/reference/marginals.md)
+call from section 5, in place of `ggExtra`.
+
+``` r
+
+glyph(mtcars, x = wt, y = mpg) |>
+  mark_point(color = cyl) |>
+  marginals(x = "histogram", y = "density", size = 0.2) |>
+  render()
+```
