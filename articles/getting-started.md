@@ -20,7 +20,7 @@ auto-renders it (like a ggplot2 plot), but that auto-render only fires
 in an interactive R session. Inside a vignette or pkgdown article the
 code runs non-interactively, so each example below ends the pipeline
 with an explicit
-[`render()`](https://josh45-source.github.io/glyph/reference/render.md)
+[`render()`](https://josh45-source.github.io/glyph/reference/render.html)
 call to produce the widget.
 
 All examples use `mtcars` so you can copy-paste and run them yourself.
@@ -28,9 +28,9 @@ All examples use `mtcars` so you can copy-paste and run them yourself.
 ## 1. Tooltips and hover, declared in the pipeline
 
 Interactivity is grammar, not glue.
-[`interact()`](https://josh45-source.github.io/glyph/reference/interact.md)
+[`interact()`](https://josh45-source.github.io/glyph/reference/interact.html)
 turns on tooltips and a hover effect right where the plot is built, and
-[`titles()`](https://josh45-source.github.io/glyph/reference/titles.md)
+[`titles()`](https://josh45-source.github.io/glyph/reference/titles.html)
 adds a title in the same pipe — no `ggplotly()` conversion step, no lost
 formatting.
 
@@ -47,7 +47,7 @@ Hover over a point to see it enlarge; pause on it to see the tooltip.
 
 ## 2. Animated bar chart
 
-[`animate()`](https://josh45-source.github.io/glyph/reference/animate.md)
+[`animate()`](https://josh45-source.github.io/glyph/reference/animate.html)
 declares a transition as part of the spec. `stagger` offsets each bar’s
 entrance animation so they draw in sequence rather than all at once.
 
@@ -65,7 +65,7 @@ slide in.
 ## 3. Token-based dark theme
 
 Instead of ggplot2’s dozens of individual `theme()` arguments,
-[`theme_tokens()`](https://josh45-source.github.io/glyph/reference/theme_tokens.md)
+[`theme_tokens()`](https://josh45-source.github.io/glyph/reference/theme_tokens.html)
 takes a small preset (or individual tokens like `bg`, `font`, `accent`)
 and cascades foreground, grid, and title colors automatically for
 contrast.
@@ -82,7 +82,7 @@ glyph(mtcars, x = wt, y = mpg) |>
 
 ## 4. Point labels with automatic collision avoidance
 
-[`mark_text()`](https://josh45-source.github.io/glyph/reference/mark_text.md)
+[`mark_text()`](https://josh45-source.github.io/glyph/reference/mark_text.html)
 draws a label per point, and `smart_repel = TRUE` nudges overlapping
 labels apart so they stay readable — a first-class feature instead of a
 separate `ggrepel` dependency. `mtcars` stores car names as row names,
@@ -100,7 +100,7 @@ glyph(mtcars_named, x = wt, y = mpg) |>
 
 ## 5. Linked panels with crossfilter brushing
 
-[`compose()`](https://josh45-source.github.io/glyph/reference/compose.md)
+[`compose()`](https://josh45-source.github.io/glyph/reference/compose.html)
 arranges multiple `glyph_spec` objects into a single layout — here, two
 scatterplots side by side — without reaching for `patchwork` or
 `cowplot`. With `interact(brush = TRUE)` on each panel and
@@ -126,7 +126,7 @@ cars highlight in both.
 
 ## 6. Faceting
 
-[`facet()`](https://josh45-source.github.io/glyph/reference/facet.md)
+[`facet()`](https://josh45-source.github.io/glyph/reference/facet.html)
 splits a plot into small multiples by one or two variables, each with
 its own panel — like ggplot2’s `facet_wrap()`, built into the same
 pipeline instead of a separate layer.
@@ -141,7 +141,7 @@ glyph(mtcars, x = wt, y = mpg) |>
 
 ## 7. Marginal distributions
 
-[`marginals()`](https://josh45-source.github.io/glyph/reference/marginals.md)
+[`marginals()`](https://josh45-source.github.io/glyph/reference/marginals.html)
 adds histograms, density curves, or boxplots along the axes — a common
 pattern that normally needs `ggExtra` or manual grid manipulation in
 ggplot2.
@@ -156,7 +156,7 @@ glyph(mtcars, x = wt, y = mpg) |>
 
 ## 8. Inset plots
 
-[`inset()`](https://josh45-source.github.io/glyph/reference/inset.md)
+[`inset()`](https://josh45-source.github.io/glyph/reference/inset.html)
 places a second, smaller glyph_spec inside a corner of the main plot —
 useful for a detail view or a different breakdown of the same data,
 without any manual viewport math.
@@ -190,7 +190,7 @@ Use the play/pause button to step through each `gear` group.
 ## Where to next
 
 - Browse the [function
-  reference](https://josh45-source.github.io/glyph/reference/index.md)
+  reference](https://josh45-source.github.io/glyph/reference/index.html)
   for every mark, scale, and layout primitive glyph provides.
 - Read [glyph vs ggplot2: Side-by-Side
   Comparison](https://josh45-source.github.io/glyph/articles/comparison.md)
