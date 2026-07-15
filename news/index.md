@@ -2,6 +2,8 @@
 
 ## glyph 0.1.1
 
+CRAN release: 2026-07-08
+
 - Fixed critical rendering bug where interactive plots displayed as
   blank in RStudio viewer, R Markdown documents, and Shiny apps. Data
   was being serialized in column-oriented format instead of the
