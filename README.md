@@ -228,4 +228,4 @@ MIT
 
 If glyph has been useful to you, please consider sponsoring its development on Patreon — it helps keep the project maintained.
 
-[![Support on Patreon](https://img.shields.io/badge/Patreon-Support-f96854?logo=patreon&logoColor=white)](https://www.patreon.com/cw/Joshfarm)
+[![Support on Patreon](https://img.shields.io/badge/Patreon-Support-f96854?logo=patreon&logoColor=white)](https://www.patreon.com/c/Joshfarm/membership)
