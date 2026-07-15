@@ -223,3 +223,9 @@ is feasible. Contributions, feedback, and design discussions are welcome.
 ## License
 
 MIT
+
+## Support This Project
+
+If glyph has been useful to you, please consider sponsoring its development on Patreon — it helps keep the project maintained.
+
+[![Support on Patreon](https://img.shields.io/badge/Patreon-Support-f96854?logo=patreon&logoColor=white)](https://www.patreon.com/cw/Joshfarm)
