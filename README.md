@@ -3,7 +3,7 @@
 > A next-generation grammar of interactive graphics for R.
 
 **glyph** is a visualization package that treats interactivity, animation,
-and composable layouts as first-class grammar concepts — not afterthoughts
+and composable layouts as first-class grammar concepts not afterthoughts
 bolted on via extension packages.
 
 ## Design Philosophy
@@ -140,7 +140,7 @@ compose() ┘     exportable                  │              webgl (100K+ poin
 
 The key insight: **separation of specification from rendering**. The same
 `glyph_spec` compiles to an interactive HTML widget for exploration, a
-static SVG for publication, or a WebGL canvas for performance — without
+static SVG for publication, or a WebGL canvas for performance without
 changing the user-facing code.
 
 ## Rendering Backends
