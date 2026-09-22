@@ -30,11 +30,16 @@ interact(
 
 - zoom:
 
-  Enable scroll-to-zoom and pan
+  Enable scroll-to-zoom and pan. The scroll wheel, a trackpad pinch, a
+  two-finger pinch and a double-click/double-tap always zoom; dragging
+  pans (see `brush` for what happens when both are enabled).
 
 - brush:
 
-  Enable rectangular brush selection
+  Enable rectangular brush selection. When `zoom` is also enabled,
+  dragging brushes by default and a small toggle next to the reset-zoom
+  control switches dragging between selecting and panning, so one drag
+  never does both at once.
 
 - hover:
 

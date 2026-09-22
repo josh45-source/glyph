@@ -26,6 +26,27 @@
   did nothing (no tooltip, no hover effect) whenever `brush` was also
   enabled on that mark, for the same reason as the tap fix above. Brushing
   itself still works by dragging from anywhere in the plot area.
+* Fixed one drag both panning and brushing when `zoom` and `brush` were
+  enabled on the same mark: zoom binds its drag to the `<svg>` and brush to
+  an overlay inside it, so a single mousedown started both gestures. A drag
+  now does one thing at a time — it brushes by default when brushing is
+  available, and a small toggle next to the reset-zoom control (shown only
+  when both are enabled) switches dragging between selecting and panning.
+  The scroll wheel, a trackpad pinch, a two-finger pinch and a
+  double-click/double-tap always zoom, whichever mode the toggle is in.
+* Two-finger pinch-zoom now works on plots that also have `brush` enabled.
+  d3-brush stops propagation of every touch move once its one-finger
+  gesture starts, so a second finger never reached the zoom behavior; the
+  pinch is now handled before anything can intercept it.
+* Fixed the plot jumping by its axis-margin offset the first time it was
+  zoomed or panned — the zoom transform replaced the plot group's existing
+  margin translate instead of composing with it.
+* Clicking the reset-zoom control no longer discards the brush selection.
+* Tapping the plot's margin (inside the chart but outside the plot area)
+  now clears the brush selection, as tapping outside the widget already did.
+* Double-tap zoom/reset on touch no longer depends on d3-zoom's internal
+  gesture detection, which also makes it work for repeated double-taps and
+  while dragging is set to brushing.
 * Computed aesthetic mappings (e.g. `x = log(wt)`, `color = factor(cyl)`)
   are now evaluated at compile time instead of being silently dropped; the
   expression text is used as the default axis/legend label.

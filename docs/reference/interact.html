@@ -71,11 +71,16 @@ glue-style template string like "{x}: {y} ({color})".</p></dd>
 
 
 <dt id="arg-zoom">zoom<a class="anchor" aria-label="anchor" href="#arg-zoom"></a></dt>
-<dd><p>Enable scroll-to-zoom and pan</p></dd>
+<dd><p>Enable scroll-to-zoom and pan. The scroll wheel, a trackpad
+pinch, a two-finger pinch and a double-click/double-tap always zoom;
+dragging pans (see <code>brush</code> for what happens when both are enabled).</p></dd>
 
 
 <dt id="arg-brush">brush<a class="anchor" aria-label="anchor" href="#arg-brush"></a></dt>
-<dd><p>Enable rectangular brush selection</p></dd>
+<dd><p>Enable rectangular brush selection. When <code>zoom</code> is also
+enabled, dragging brushes by default and a small toggle next to the
+reset-zoom control switches dragging between selecting and panning, so
+one drag never does both at once.</p></dd>
 
 
 <dt id="arg-hover">hover<a class="anchor" aria-label="anchor" href="#arg-hover"></a></dt>
