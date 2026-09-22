@@ -15,7 +15,10 @@ compile(spec, engine = "auto", width = NULL, height = NULL)
 \arguments{
 \item{spec}{A glyph_spec or glyph_layout}
 
-\item{engine}{Rendering backend: "auto", "html", "svg", "canvas", "webgl"}
+\item{engine}{Rendering backend. Only \code{"html"} (D3.js via htmlwidgets) is
+currently implemented; \code{"auto"} resolves to \code{"html"}. Other values are
+rejected — earlier versions accepted \code{"canvas"}/\code{"webgl"} and silently
+ignored them (no such renderer ever existed), which was misleading.}
 
 \item{width}{Width in pixels (NULL for auto)}
 

@@ -108,7 +108,7 @@ pipeline with [`interact()`](reference/interact.html) and
 Every glyph visualization is a pure, inspectable data structure. Serialize
 it to JSON, export it to Vega-Lite with
 [`to_vegalite()`](reference/to_vegalite.html), or
-[`compile()`](reference/compile.html) it to HTML, SVG, canvas, or WebGL —
+[`compile()`](reference/compile.html) it to an interactive HTML widget —
 without touching the code that built it.
 
 **Composition is built in.**

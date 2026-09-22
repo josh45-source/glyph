@@ -111,7 +111,7 @@ glyph(mtcars, x = wt, y = mpg) |>
 | Inset plots | ❌ Manual grid/viewport hacking | ✅ `inset()` built-in |
 | Smart label repulsion | ❌ Requires `ggrepel` | ✅ `mark_text(smart_repel = TRUE)` |
 | Vega-Lite export | ❌ Not possible | ✅ `to_vegalite()` |
-| Large data (>100K pts) | ⚠️ Slow (grob tree) | ✅ Auto WebGL backend |
+| Large data (>100K pts) | ⚠️ Slow (grob tree) | ⚠️ Not yet optimized — Canvas/WebGL backends are planned |
 | Theme presets | ⚠️ `theme_minimal()`, etc. | ✅ `theme_tokens(preset = "dark")` with auto-contrast |
 | Per-mark data | ⚠️ Awkward `data` param override | ✅ Each mark can have own data |
 | Cross-filter dashboard | ❌ Requires Shiny | ✅ Declarative `crossfilter = TRUE` |
@@ -131,30 +131,32 @@ User API              Spec (pure data)          Backends
 ─────────           ──────────────────        ──────────
 glyph() ──┐
 mark_*()  ├──►  glyph_spec (R list)  ──►  compile() ──►  html (D3/htmlwidgets)
-scale()   │     serializable to JSON        │              svg (static)
-animate() │     inspectable                 │              canvas (large data)
-compose() ┘     exportable                  │              webgl (100K+ points)
+scale()   │     serializable to JSON        │              svg (planned)
+animate() │     inspectable                 │              canvas (planned)
+compose() ┘     exportable                  │              webgl (planned)
                                             │              pdf (planned)
                                             └──►  to_vegalite() (interop)
 ```
 
-The key insight: **separation of specification from rendering**. The same
-`glyph_spec` compiles to an interactive HTML widget for exploration, a
-static SVG for publication, or a WebGL canvas for performance — without
-changing the user-facing code.
+The key insight: **separation of specification from rendering**. The
+`glyph_spec` is a plain data structure independent of how it's drawn, so
+new backends (static SVG export, Canvas, WebGL) can be added later without
+changing the user-facing code. Today, `compile()` only implements one
+backend: an interactive HTML widget via D3.js/SVG.
 
 ## Rendering Backends
 
-| Backend | Use Case | Data Scale | Interactive |
+| Backend | Status | Use Case | Interactive |
 |---|---|---|---|
-| `html` (default) | Exploration, dashboards | < 10K points | ✅ Full |
-| `canvas` | Medium data | 10K–100K points | ✅ Tooltips + zoom |
-| `webgl` | Large data | 100K+ points | ⚠️ Basic |
-| `svg` | Publication, export | < 5K points | ❌ Static |
-| `pdf` | Print | Any | ❌ Static |
+| `html` (default) | ✅ Implemented | Exploration, dashboards | ✅ Full |
+| `svg` | 🔜 Planned | Publication, export | ❌ Static |
+| `canvas` | 🔜 Planned | Medium-large data | ✅ Tooltips + zoom |
+| `webgl` | 🔜 Planned | Very large data | ⚠️ Basic |
+| `pdf` | 🔜 Planned | Print | ❌ Static |
 
-Auto-selection: `compile()` chooses the backend based on data size when
-`engine = "auto"` (the default).
+`compile(engine = ...)` currently only accepts `"auto"` (equivalent to
+`"html"`) or `"html"` explicitly; other engines aren't implemented yet and
+are rejected rather than silently ignored.
 
 ## Token-Based Theming
 
@@ -219,6 +221,34 @@ glyph(mtcars, x = wt, y = mpg) |>
 
 This is a prototype exploring whether a better visualization grammar for R
 is feasible. Contributions, feedback, and design discussions are welcome.
+
+## Acknowledgements
+
+glyph's design draws directly on the ideas and prior art of others:
+
+- **Leland Wilkinson's *The Grammar of Graphics*** — the layered
+  data/mark/scale vocabulary that glyph's spec is structured around.
+- **ggplot2** — the aesthetic-mapping model (`aes()`, here bare names
+  instead) and the pipeline style of building a plot up in layers.
+- **Vega-Lite** — the idea of a declarative, serializable JSON spec that
+  compiles to a render tree, and treating interactions as selections.
+- **ggvis** — an earlier reactive, D3-backed grammar of graphics for R;
+  glyph's D3-via-htmlwidgets rendering follows the same path.
+- **ggiraph** — ggplot2 output with D3-powered tooltips, hover, and
+  selection; a direct influence on glyph's own tooltip/hover/brush model.
+- **plotly** — the baseline for what an "interactive R plot" should offer
+  (zoom, pan, tooltips), which glyph aims to provide natively.
+- **patchwork** — the model for glyph's `compose()` multi-plot layout API.
+- **gganimate** — the `transition_states()`-style keyframe grammar behind
+  `animate(by = ..., transition = "morph")`.
+- **ggExtra** — the marginal histogram/density/boxplot pattern behind
+  `marginals()`.
+- **ggrepel** — the inspiration for `mark_text(smart_repel = TRUE)`'s
+  label decluttering (glyph uses a simpler iterative pairwise-nudge
+  approach rather than ggrepel's force simulation — see `?mark_text`).
+
+This package also bundles [D3.js](https://d3js.org) (Copyright Mike
+Bostock, ISC License); see `inst/COPYRIGHTS` for the full notice.
 
 ## License
 

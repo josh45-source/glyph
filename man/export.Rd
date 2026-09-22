@@ -9,8 +9,10 @@ export(spec, file, width = 800, height = 600)
 \arguments{
 \item{spec}{A glyph_spec or glyph_compiled}
 
-\item{file}{Output file path. Extension determines format:
-.html, .svg, .png, .pdf, .json (exports the raw spec)}
+\item{file}{Output file path. Extension determines format. Currently
+implemented: \code{.html} (self-contained interactive widget) and \code{.json}
+(the compiled spec). Other extensions (\code{.svg}, \code{.png}, \code{.pdf}) are
+planned but not yet implemented, and currently just print a message.}
 
 \item{width}{Width in pixels}
 

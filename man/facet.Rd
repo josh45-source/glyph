@@ -9,9 +9,11 @@ facet(spec, rows = NULL, cols = NULL, free_scales = "none", wrap = NULL)
 \arguments{
 \item{spec}{A glyph_spec}
 
-\item{rows}{Row faceting variable (bare name or NULL)}
+\item{rows}{Row faceting variable: a bare column name, a computed
+expression (e.g. \code{factor(cyl)}), or \code{NULL}}
 
-\item{cols}{Column faceting variable (bare name or NULL)}
+\item{cols}{Column faceting variable: a bare column name, a computed
+expression, or \code{NULL}}
 
 \item{free_scales}{"none", "x", "y", "both"}
 

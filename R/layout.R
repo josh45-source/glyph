@@ -126,8 +126,10 @@ inset <- function(spec, inset, position = "top-right") {
 #'   (instead of forced uniformity).
 #'
 #' @param spec A glyph_spec
-#' @param rows Row faceting variable (bare name or NULL)
-#' @param cols Column faceting variable (bare name or NULL)
+#' @param rows Row faceting variable: a bare column name, a computed
+#'   expression (e.g. \code{factor(cyl)}), or \code{NULL}
+#' @param cols Column faceting variable: a bare column name, a computed
+#'   expression, or \code{NULL}
 #' @param free_scales "none", "x", "y", "both"
 #' @param wrap If only one variable, wrap into a grid with this many columns
 #' @return Modified glyph_spec
@@ -136,18 +138,24 @@ facet <- function(spec, rows = NULL, cols = NULL,
                   free_scales = "none", wrap = NULL) {
   stopifnot(inherits(spec, "glyph_spec"))
 
-  rows_expr <- if (!missing(rows)) rlang::as_label(rlang::enquo(rows)) else NULL
-  cols_expr <- if (!missing(cols)) rlang::as_label(rlang::enquo(cols)) else NULL
+  # Like aesthetic mappings (capture_mappings()), keep the quosure alongside
+  # its label so a computed expression (e.g. `cols = factor(cyl)`) can be
+  # evaluated at compile time instead of being used verbatim as a column
+  # name that doesn't exist in the data.
+  rows_q <- if (!missing(rows)) rlang::enquo(rows) else NULL
+  cols_q <- if (!missing(cols)) rlang::enquo(cols) else NULL
 
   spec$facets <- list(
-    rows        = rows_expr,
-    cols        = cols_expr,
+    rows        = if (!is.null(rows_q)) list(expr = rlang::as_label(rows_q), quosure = rows_q) else NULL,
+    cols        = if (!is.null(cols_q)) list(expr = rlang::as_label(cols_q), quosure = cols_q) else NULL,
     free_scales = match.arg(free_scales, c("none", "x", "y", "both")),
     wrap        = wrap
   )
   spec
 }
 
+#' Print a glyph layout
+#'
 #' @param x A glyph_layout object
 #' @param ... Additional arguments (ignored)
 #' @return Invisibly returns the \code{glyph_layout} object

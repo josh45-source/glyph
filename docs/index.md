@@ -12,7 +12,7 @@ packages.
 install.packages("glyph")
 ```
 
-  
+\
 
 ## ggplot2 vs glyph
 
@@ -27,7 +27,7 @@ No [`aes()`](https://ggplot2.tidyverse.org/reference/aes.html). No
 juggling geometry, scales, and theme in one flat expression. And you get
 zoom, brush, and hover for free.
 
-  
+\
 
 ## Why glyph?
 
@@ -36,8 +36,7 @@ linked views are declared right in the pipeline with
 [`interact()`](https://josh45-source.github.io/glyph/reference/interact.md)
 and
 [`selection()`](https://josh45-source.github.io/glyph/reference/selection.md)
-— not stapled on afterward with
-[`plotly::ggplotly()`](https://rdrr.io/pkg/plotly/man/ggplotly.html).
+— not stapled on afterward with `plotly::ggplotly()`.
 
 **The spec is the plot.** Every glyph visualization is a pure,
 inspectable data structure. Serialize it to JSON, export it to Vega-Lite
@@ -45,7 +44,7 @@ with
 [`to_vegalite()`](https://josh45-source.github.io/glyph/reference/to_vegalite.md),
 or
 [`compile()`](https://josh45-source.github.io/glyph/reference/compile.md)
-it to HTML, SVG, canvas, or WebGL — without touching the code that built
+it to an interactive HTML widget — without touching the code that built
 it.
 
 **Composition is built in.** Multi-plot layouts, marginal distributions,
@@ -66,7 +65,7 @@ foreground, grid, and title colors automatically for contrast.
 declares transitions, stagger, and easing right where the plot is built,
 with no separate `gganimate` render pass.
 
-  
+\
 
 ## Installation
 
@@ -78,7 +77,7 @@ install.packages("glyph")
 # remotes::install_github("josh45-source/glyph")
 ```
 
-  
+\
 
 ## Getting Started
 

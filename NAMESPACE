@@ -31,11 +31,13 @@ export(selection)
 export(theme_tokens)
 export(titles)
 export(to_vegalite)
-importFrom(cli,cli_abort)
-importFrom(cli,cli_alert_info)
-importFrom(cli,cli_alert_success)
-importFrom(cli,cli_bullets)
-importFrom(cli,cli_h1)
+importFrom(cli,
+  cli_abort,
+  cli_alert_info,
+  cli_alert_success,
+  cli_bullets,
+  cli_h1
+)
 importFrom(htmlwidgets,createWidget)
 importFrom(jsonlite,toJSON)
 importFrom(rlang,`%||%`)

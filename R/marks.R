@@ -62,7 +62,12 @@ mark_area <- function(spec, ..., data = NULL, style = list()) {
 #' Add a text/label mark
 #' @inheritParams mark_point
 #' @param smart_repel Automatically avoid label overlaps (TRUE by default).
-#'   This is a first-class feature, not an extension package.
+#'   Inspired by \pkg{ggrepel}, but simpler: rather than a full force-directed
+#'   simulation, glyph resolves overlaps by iterative pairwise nudging —
+#'   repeatedly comparing every pair of label bounding boxes and, for any
+#'   pair that still overlaps, pushing them a small step apart vertically
+#'   (up to 50 passes, stopping as soon as none overlap). This is a
+#'   first-class feature, not an extension package.
 #' @return Modified \code{glyph_spec} object with the text mark added
 #' @export
 mark_text <- function(spec, ..., data = NULL, style = list(),

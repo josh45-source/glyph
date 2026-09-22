@@ -5,8 +5,38 @@
 \alias{glyph-package}
 \title{glyph: A Next-Generation Grammar of Interactive Graphics}
 \description{
-A modern visualization grammar that treats interactivity, animation, and composable layouts as first-class concepts rather than afterthoughts. Designed to address key limitations of existing grammars: native hover, click, and zoom events, 'WebGL'-accelerated rendering for large datasets, built-in multi-plot composition, and a token-based theming system. Renders to interactive HTML widgets via 'D3.js' or static SVG from a single declarative specification.
+A modern visualization grammar that treats interactivity, animation, and composable layouts as first-class concepts rather than afterthoughts. Designed to address key limitations of existing grammars: native hover, click, and zoom events, built-in multi-plot composition, and a token-based theming system. Renders interactive HTML widgets via 'D3.js' from a single declarative specification.
 }
+\section{Acknowledgements}{
+
+glyph's design draws directly on the ideas and prior art of others:
+\itemize{
+\item \strong{Leland Wilkinson's \emph{The Grammar of Graphics}} — the layered
+data/mark/scale vocabulary that glyph's spec is structured around.
+\item \strong{ggplot2} — the aesthetic-mapping model (\code{aes()}, here bare names
+instead) and the pipeline style of building a plot up in layers.
+\item \strong{Vega-Lite} — the idea of a declarative, serializable JSON spec that
+compiles to a render tree, and treating interactions as selections.
+\item \strong{ggvis} — an earlier reactive, D3-backed grammar of graphics for R;
+glyph's D3-via-htmlwidgets rendering follows the same path.
+\item \strong{ggiraph} — ggplot2 output with D3-powered tooltips, hover, and
+selection; a direct influence on glyph's own tooltip/hover/brush model.
+\item \strong{plotly} — the baseline for what an "interactive R plot" should
+offer (zoom, pan, tooltips), which glyph aims to provide natively.
+\item \strong{patchwork} — the model for glyph's \code{\link[=compose]{compose()}} multi-plot layout API.
+\item \strong{gganimate} — the \code{transition_states()}-style keyframe grammar behind
+\code{animate(by = ..., transition = "morph")}.
+\item \strong{ggExtra} — the marginal histogram/density/boxplot pattern behind
+\code{\link[=marginals]{marginals()}}.
+\item \strong{ggrepel} — the inspiration for \code{mark_text(smart_repel = TRUE)}'s
+label decluttering (glyph uses a simpler iterative pairwise-nudge
+approach rather than ggrepel's force simulation — see \code{\link[=mark_text]{mark_text()}}).
+}
+
+This package also bundles \href{https://d3js.org}{D3.js} (Copyright Mike
+Bostock, ISC License); see \code{inst/COPYRIGHTS} for the full notice.
+}
+
 \seealso{
 Useful links:
 \itemize{
@@ -18,6 +48,16 @@ Useful links:
 }
 \author{
 \strong{Maintainer}: Joash Joshua Ayo \email{joashjoshua789@gmail.com}
+
+Authors:
+\itemize{
+  \item Joash Joshua Ayo \email{joashjoshua789@gmail.com}
+}
+
+Other contributors:
+\itemize{
+  \item Mike Bostock (Author of the bundled D3.js library) [contributor, copyright holder]
+}
 
 }
 \keyword{internal}

@@ -1,18 +1,15 @@
 # Rendering Pipeline
 
 The rendering pipeline compiles a glyph_spec into output. The spec is
-first resolved (evaluate quosures, compute stats, merge defaults), then
-serialized to JSON, then handed to a backend:
+first resolved (evaluate quosures, drop rows with missing mapped values,
+merge defaults), then serialized to JSON, then handed to a backend:
 
-- **"html"** (default): htmlwidgets + D3.js for interactive viewing
+- **"html"** (default): htmlwidgets + D3.js for interactive viewing.
+  This is currently the only implemented renderer; the visual output is
+  SVG, drawn by D3 inside the widget.
 
-- **"svg"**: Static SVG file (publication quality)
-
-- **"canvas"**: HTML5 Canvas for large-data performance
-
-- **"webgl"**: WebGL via regl/deck.gl for 100K+ points (planned)
-
-- **"pdf"**: Direct PDF output via R's pdf() device (planned)
+- **"svg"**, **"canvas"**, **"webgl"**, **"pdf"**: standalone static/
+  large-data export backends. Planned, not yet implemented.
 
 ## Details
 
@@ -27,4 +24,4 @@ step resolves it into a concrete render tree. This means you can:
 
 - Export it to Vega-Lite JSON (near 1:1 mapping)
 
-- Compile to multiple backends from one spec
+- Add new backends later without changing the user-facing spec API

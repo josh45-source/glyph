@@ -10,3 +10,4 @@
 ^pkgdown$
 ^index\.md$
 ^\.github$
+^\.claude$

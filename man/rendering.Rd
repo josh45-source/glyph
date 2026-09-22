@@ -5,14 +5,15 @@
 \title{Rendering Pipeline}
 \description{
 The rendering pipeline compiles a glyph_spec into output.
-The spec is first resolved (evaluate quosures, compute stats, merge
-defaults), then serialized to JSON, then handed to a backend:
+The spec is first resolved (evaluate quosures, drop rows with missing
+mapped values, merge defaults), then serialized to JSON, then handed to
+a backend:
 \itemize{
-\item \strong{"html"} (default): htmlwidgets + D3.js for interactive viewing
-\item \strong{"svg"}: Static SVG file (publication quality)
-\item \strong{"canvas"}: HTML5 Canvas for large-data performance
-\item \strong{"webgl"}: WebGL via regl/deck.gl for 100K+ points (planned)
-\item \strong{"pdf"}: Direct PDF output via R's pdf() device (planned)
+\item \strong{"html"} (default): htmlwidgets + D3.js for interactive viewing.
+This is currently the only implemented renderer; the visual output is
+SVG, drawn by D3 inside the widget.
+\item \strong{"svg"}, \strong{"canvas"}, \strong{"webgl"}, \strong{"pdf"}: standalone static/
+large-data export backends. Planned, not yet implemented.
 }
 }
 \details{
@@ -23,6 +24,6 @@ This means you can:
 \item Inspect the compiled spec as JSON (for debugging or export)
 \item Serialize it and render on a different machine
 \item Export it to Vega-Lite JSON (near 1:1 mapping)
-\item Compile to multiple backends from one spec
+\item Add new backends later without changing the user-facing spec API
 }
 }

@@ -41,6 +41,8 @@ glyph <- function(data = NULL, ...) {
   spec
 }
 
+#' Summarize a glyph specification
+#'
 #' @param object A glyph_spec object
 #' @param ... Additional arguments (ignored)
 #' @return No return value, called for side effects (prints a summary

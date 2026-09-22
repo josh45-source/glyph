@@ -1,14 +1,15 @@
 #' @title Rendering Pipeline
 #' @name rendering
 #' @description The rendering pipeline compiles a glyph_spec into output.
-#'   The spec is first resolved (evaluate quosures, compute stats, merge
-#'   defaults), then serialized to JSON, then handed to a backend:
+#'   The spec is first resolved (evaluate quosures, drop rows with missing
+#'   mapped values, merge defaults), then serialized to JSON, then handed to
+#'   a backend:
 #'
-#'   - **"html"** (default): htmlwidgets + D3.js for interactive viewing
-#'   - **"svg"**: Static SVG file (publication quality)
-#'   - **"canvas"**: HTML5 Canvas for large-data performance
-#'   - **"webgl"**: WebGL via regl/deck.gl for 100K+ points (planned)
-#'   - **"pdf"**: Direct PDF output via R's pdf() device (planned)
+#'   - **"html"** (default): htmlwidgets + D3.js for interactive viewing.
+#'     This is currently the only implemented renderer; the visual output is
+#'     SVG, drawn by D3 inside the widget.
+#'   - **"svg"**, **"canvas"**, **"webgl"**, **"pdf"**: standalone static/
+#'     large-data export backends. Planned, not yet implemented.
 #'
 #' @details
 #' Key architectural difference from ggplot2: the spec is a pure data
@@ -17,13 +18,16 @@
 #' - Inspect the compiled spec as JSON (for debugging or export)
 #' - Serialize it and render on a different machine
 #' - Export it to Vega-Lite JSON (near 1:1 mapping)
-#' - Compile to multiple backends from one spec
+#' - Add new backends later without changing the user-facing spec API
 NULL
 
 #' Compile a glyph spec to a resolved representation
 #'
 #' @param spec A glyph_spec or glyph_layout
-#' @param engine Rendering backend: "auto", "html", "svg", "canvas", "webgl"
+#' @param engine Rendering backend. Only `"html"` (D3.js via htmlwidgets) is
+#'   currently implemented; `"auto"` resolves to `"html"`. Other values are
+#'   rejected — earlier versions accepted `"canvas"`/`"webgl"` and silently
+#'   ignored them (no such renderer ever existed), which was misleading.
 #' @param width Width in pixels (NULL for auto)
 #' @param height Height in pixels (NULL for auto)
 #' @return A `glyph_compiled` object (a list with resolved data + JSON)
@@ -38,19 +42,42 @@ compile <- function(spec, engine = "auto", width = NULL, height = NULL) {
 #' @export
 compile.glyph_spec <- function(spec, engine = "auto",
                                 width = NULL, height = NULL) {
-  # Step 1: Choose engine based on data size if auto
+  # Only "html" (D3/htmlwidgets) is actually implemented — there is no
+  # canvas/webgl renderer to auto-select between by data size, so "engine"
+  # no longer does anything except resolve "auto" -> "html" and reject
+  # unsupported values explicitly instead of silently accepting them.
+  engine <- match.arg(engine, c("auto", "html"))
+  if (engine == "auto") engine <- "html"
 
-if (engine == "auto") {
-    n <- if (!is.null(spec$data)) nrow(spec$data) else 0
-    engine <- if (n > 100000) "webgl" else if (n > 10000) "canvas" else "html"
+  # Step 1: Resolve the facet variables (rows/cols), if any — like an
+  # aesthetic mapping, `facet(cols = factor(cyl))` is a computed expression
+  # that has to be evaluated, not a literal column name. Any generated
+  # column is added to the top-level data (so the JS side can enumerate
+  # facet values from it) and threaded into every mark's own per-mark data
+  # below (so each facet panel can filter *that mark's* resolved rows —
+  # computed columns and NA-dropped rows included — instead of falling back
+  # to an unresolved, unfiltered slice of the shared data).
+  facet_resolved <- resolve_facets(spec$facets, spec$data)
+  enriched_data <- facet_resolved$data
+
+  # Step 2: Resolve aesthetic mappings (evaluate quosures against data,
+  # including computed expressions like `x = log(wt)`; drop rows with NA in
+  # a mapped position aesthetic). Marks that map from the spec's own data
+  # (not a per-mark `data` override) may generate new columns (e.g. for
+  # `log(wt)`) — those are folded back into `enriched_data` so the top-level
+  # serialized `data` (used by facets/marginals) also has them.
+  resolved <- lapply(spec$marks, function(mark) {
+    resolve_mark(mark, spec$data, spec$mappings, facet_resolved$generated)
+  })
+  resolved_marks <- lapply(resolved, `[[`, "mark_json")
+  for (r in resolved) {
+    if (!is.null(r$enriched)) {
+      new_cols <- setdiff(names(r$enriched), names(enriched_data))
+      for (col in new_cols) enriched_data[[col]] <- r$enriched[[col]]
+    }
   }
 
-  # Step 2: Resolve aesthetic mappings (evaluate quosures against data)
-  resolved_marks <- lapply(spec$marks, function(mark) {
-    resolve_mark(mark, spec$data, spec$mappings)
-  })
-
-  # Step 3: Auto-detect scale types from data
+  # Step 3: Auto-detect scale types from data (including computed mappings)
   resolved_scales <- resolve_scales(spec$scales, spec$mappings, spec$data)
 
   # Step 4: Build the JSON specification
@@ -58,11 +85,11 @@ if (engine == "auto") {
     `$schema` = "glyph/v0.1",
     width     = width %||% 600,
     height    = height %||% 400,
-    data      = list(values = df_to_records(spec$data)),
+    data      = list(values = df_to_records(enriched_data)),
     marks     = resolved_marks,
     scales    = resolved_scales,
     coords    = spec$coords,
-    facets    = spec$facets,
+    facets    = facet_resolved$facets,
     interact  = spec$interact,
     animate   = spec$animate,
     theme     = spec$theme,
@@ -115,39 +142,193 @@ compile.glyph_layout <- function(spec, engine = "auto",
 
 # ---- Resolve helpers ---------------------------------------------------------
 
+#' Evaluate a captured mapping (quosure) against `data`
+#' @description A mapping like \code{x = wt} is a plain column reference; one
+#'   like \code{x = log(wt)} or \code{color = factor(cyl)} is a computed
+#'   expression that has to be evaluated with \code{\link[rlang]{eval_tidy}}
+#'   before it means anything. Returns \code{NULL} when the mapping can't be
+#'   resolved to one value per row of \code{data} — e.g. a template string
+#'   like \code{"{mpg} mpg"}, an unresolvable expression, or an aggregate
+#'   that doesn't return a per-row vector — so the caller can fall back to
+#'   treating it as an opaque expression, same as before.
 #' @noRd
-resolve_mark <- function(mark, global_data, global_mappings) {
-  data <- mark$data %||% global_data
+eval_mapping_value <- function(m, data) {
+  expr_str <- m$expr
+  if (!is.null(data) && expr_str %in% names(data)) {
+    return(list(value = data[[expr_str]], computed = FALSE))
+  }
+  n <- if (!is.null(data)) nrow(data) else 0L
+  if (n == 0) return(NULL)
+  val <- tryCatch(rlang::eval_tidy(m$quosure, data = data), error = function(e) NULL)
+  if (!is.null(val) && length(val) == n) {
+    return(list(value = val, computed = TRUE))
+  }
+  NULL
+}
+
+#' Resolve facet(rows =, cols =) into concrete field names
+#' @description Mirrors \code{eval_mapping_value()}: a facet variable can be
+#'   a plain column (\code{facet(cols = cyl)}) or a computed expression
+#'   (\code{facet(cols = factor(cyl))}). The former just needs its name; the
+#'   latter has to be evaluated once against \code{data} and given a field
+#'   name of its own, since the JS side facets by looking up
+#'   \code{d[facets.cols]} on each row and a raw expression string like
+#'   \code{"factor(cyl)"} was never going to be a real column.
+#' @return A list with \code{facets} (the resolved facets list — same shape
+#'   as \code{spec$facets} but with \code{rows}/\code{cols} always a plain
+#'   field name string, or \code{NULL}), \code{data} (\code{data} with any
+#'   generated column(s) added), and \code{generated} (a named list of the
+#'   generated column(s) alone, so callers that don't already have the
+#'   enriched \code{data} — namely each mark — can merge them in too).
+#' @noRd
+resolve_facets <- function(facets, data) {
+  if (is.null(facets)) return(list(facets = NULL, data = data, generated = list()))
+
+  generated <- list()
+  resolve_one <- function(fvar, which) {
+    if (is.null(fvar)) return(NULL)
+    if (!is.null(data) && fvar$expr %in% names(data)) return(fvar$expr)
+
+    n <- if (!is.null(data)) nrow(data) else 0L
+    val <- if (n > 0) {
+      tryCatch(rlang::eval_tidy(fvar$quosure, data = data), error = function(e) NULL)
+    } else {
+      NULL
+    }
+    if (!is.null(val) && length(val) == n) {
+      field_name <- paste0(".g_facet_", which)
+      generated[[field_name]] <<- val
+      return(field_name)
+    }
+
+    # Unresolvable (e.g. references a name that doesn't exist anywhere) —
+    # fall back to the raw expression text so this degrades the same way
+    # an unresolvable aesthetic mapping does, rather than erroring.
+    fvar$expr
+  }
+
+  cols_field <- resolve_one(facets$cols, "cols")
+  rows_field <- resolve_one(facets$rows, "rows")
+
+  data_out <- data
+  for (fn in names(generated)) data_out[[fn]] <- generated[[fn]]
+
+  list(
+    facets = list(
+      cols        = cols_field,
+      rows        = rows_field,
+      free_scales = facets$free_scales,
+      wrap        = facets$wrap
+    ),
+    data = data_out,
+    generated = generated
+  )
+}
+
+#' @noRd
+resolve_mark <- function(mark, global_data, global_mappings, extra_cols = list()) {
+  mark_data <- mark$data %||% global_data
+  uses_global_data <- is.null(mark$data)
   all_mappings <- utils::modifyList(global_mappings, mark$mappings)
 
-  # Evaluate each mapping against the data
+  # Evaluate each mapping against the data. A computed expression that
+  # resolves to a per-row vector becomes a generated column (e.g. field
+  # ".g_point_1_x" for `x = log(wt)`); the expression text becomes the
+  # default label used for axis/legend titles in resolve_scales().
   encoding <- list()
+  generated_cols <- list()
   for (nm in names(all_mappings)) {
     m <- all_mappings[[nm]]
     expr_str <- m$expr
+    resolved <- eval_mapping_value(m, mark_data)
 
-    # Check if it's a data column or a computed expression
-    if (!is.null(data) && expr_str %in% names(data)) {
-      col <- data[[expr_str]]
+    if (is.null(resolved)) {
+      # Might be a template string (for tooltips) or an expression that
+      # can't be evaluated per-row — unchanged fallback behavior.
+      encoding[[nm]] <- list(expr = expr_str, type = "expression")
+    } else if (resolved$computed) {
+      field_name <- sprintf(".g_%s_%s", mark$id, nm)
+      generated_cols[[field_name]] <- resolved$value
       encoding[[nm]] <- list(
-        field = expr_str,
-        type  = infer_field_type(col)
+        field = field_name,
+        type  = infer_field_type(resolved$value),
+        label = expr_str
       )
     } else {
-      # Might be a template string (for tooltips) or expression
       encoding[[nm]] <- list(
-        expr = expr_str,
-        type = "expression"
+        field = expr_str,
+        type  = infer_field_type(resolved$value),
+        label = expr_str
       )
     }
   }
 
+  # Attach any generated columns to a working copy of this mark's data so
+  # they can be serialized (compile.glyph_spec() attaches the result as
+  # this mark's own `data` in the compiled JSON). A computed facet variable
+  # (extra_cols, from resolve_facets()) is folded in here too — only for
+  # marks using the spec's own data, same condition as `enriched` below —
+  # so the JS renderer can filter *this mark's* resolved rows by facet
+  # value directly, instead of only the shared top-level data.
+  work_data <- mark_data
+  all_generated <- if (uses_global_data) c(generated_cols, extra_cols) else generated_cols
+  if (length(all_generated) > 0) {
+    if (is.null(work_data)) {
+      work_data <- as.data.frame(all_generated, stringsAsFactors = FALSE)
+    } else {
+      for (fn in names(all_generated)) work_data[[fn]] <- all_generated[[fn]]
+    }
+  }
+
+  # Marks using the spec's own data (no per-mark `data` override) can fold
+  # their generated columns back into the shared top-level data, so facets
+  # and marginals (which read the top-level `data`, not a per-mark one) see
+  # them too. A per-mark data override can't be folded back this way — only
+  # spec$data is serialized at the top level — but that combination was
+  # already unsupported before this change.
+  enriched <- if (uses_global_data) work_data else NULL
+
+  # Drop rows with NA in a mapped position aesthetic — better to omit a mark
+  # than draw it at an invalid position — and warn how many/why, ggplot2-style.
+  position_aes <- c("x", "y", "x2", "y2", "y_min", "y_max")
+  work_data <- drop_na_position_rows(work_data, encoding, position_aes, mark$id)
+
   list(
-    type     = mark$type,
-    encoding = encoding,
-    style    = mark$style,
-    id       = mark$id
+    mark_json = list(
+      type     = mark$type,
+      encoding = encoding,
+      style    = mark$style,
+      id       = mark$id,
+      data     = list(values = df_to_records(work_data))
+    ),
+    enriched = enriched
   )
+}
+
+#' Drop rows with NA in any mapped position aesthetic and warn
+#' @noRd
+drop_na_position_rows <- function(data, encoding, position_aes, mark_id) {
+  if (is.null(data) || nrow(data) == 0) return(data)
+
+  pos_present <- intersect(position_aes, names(encoding))
+  pos_fields <- lapply(pos_present, function(a) encoding[[a]]$field)
+  names(pos_fields) <- pos_present
+  pos_fields <- Filter(Negate(is.null), pos_fields)
+  if (length(pos_fields) == 0) return(data)
+
+  na_flags <- lapply(pos_fields, function(f) is.na(data[[f]]))
+  any_na <- Reduce(`|`, na_flags)
+  n_dropped <- sum(any_na)
+  if (n_dropped == 0) return(data)
+
+  offending <- names(pos_fields)[vapply(na_flags, any, logical(1))]
+  cli::cli_warn(c(
+    "!" = paste0(
+      "Removed {n_dropped} row{?s} containing missing values ",
+      "({.field {offending}}) from mark {.val {mark_id}}."
+    )
+  ))
+  data[!any_na, , drop = FALSE]
 }
 
 #' Convert a data.frame to a list of row-records
@@ -174,13 +355,19 @@ infer_field_type <- function(x) {
 
 #' @noRd
 resolve_scales <- function(scales, mappings, data) {
-  # Auto-create scales for mapped aesthetics if not explicitly defined
+  # Auto-create scales for mapped aesthetics if not explicitly defined.
+  # Computed expressions (e.g. `x = log(wt)`) are evaluated the same way as
+  # in resolve_mark() so their type can be inferred and the expression text
+  # used as the default axis/legend label — previously only plain column
+  # mappings got a label at all here, so a computed x/y axis rendered with
+  # no label text.
   resolved <- scales
   for (nm in names(mappings)) {
     if (is.null(resolved[[nm]])) {
-      expr_str <- mappings[[nm]]$expr
-      if (!is.null(data) && expr_str %in% names(data)) {
-        ftype <- infer_field_type(data[[expr_str]])
+      m <- mappings[[nm]]
+      ev <- eval_mapping_value(m, data)
+      if (!is.null(ev)) {
+        ftype <- infer_field_type(ev$value)
         resolved[[nm]] <- list(
           aesthetic = nm,
           type      = switch(ftype,
@@ -190,7 +377,7 @@ resolve_scales <- function(scales, mappings, data) {
             ordinal      = "ordinal",
             "linear"
           ),
-          label = expr_str,
+          label = m$expr,
           nice  = TRUE
         )
       }
@@ -272,8 +459,10 @@ print.glyph_spec <- function(x, ...) {
 #' Export to various formats
 #'
 #' @param spec A glyph_spec or glyph_compiled
-#' @param file Output file path. Extension determines format:
-#'   .html, .svg, .png, .pdf, .json (exports the raw spec)
+#' @param file Output file path. Extension determines format. Currently
+#'   implemented: `.html` (self-contained interactive widget) and `.json`
+#'   (the compiled spec). Other extensions (`.svg`, `.png`, `.pdf`) are
+#'   planned but not yet implemented, and currently just print a message.
 #' @param width Width in pixels
 #' @param height Height in pixels
 #' @return Invisibly returns the output file path

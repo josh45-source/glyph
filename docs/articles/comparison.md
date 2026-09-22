@@ -301,8 +301,7 @@ glyph(mtcars, x = wt, y = mpg) |>
 ### Tooltip, zoom, and brush — no `ggplotly()` conversion
 
 The interactions from section 2, declared directly in the pipeline and
-fully preserved (unlike a lossy
-[`ggplotly()`](https://rdrr.io/pkg/plotly/man/ggplotly.html) wrap).
+fully preserved (unlike a lossy `ggplotly()` wrap).
 
 ``` r
 
