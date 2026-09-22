@@ -42,7 +42,7 @@ with
 [`to_vegalite()`](https://josh45-source.github.io/glyph/reference/to_vegalite.md),
 or
 [`compile()`](https://josh45-source.github.io/glyph/reference/compile.md)
-it to HTML, SVG, canvas, or WebGL — without touching the code that built
+it to an interactive HTML widget — without touching the code that built
 it.
 
 **Composition is built in.** Multi-plot layouts, marginal distributions,

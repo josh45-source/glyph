@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="index.html">glyph</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.1.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -59,7 +59,7 @@
   theme:     token map
   layout:    composition config
 }</code></pre>
-<p><strong>Why specs matter:</strong> - <em>Serializable</em>: <code>jsonlite::toJSON(compile(spec)$spec)</code> gives you a JSON blob you can send to a server, save to a file, or embed in a document. - <em>Inspectable</em>: You can print, diff, and test specs without rendering. - <em>Multi-backend</em>: One spec compiles to D3, Canvas, WebGL, SVG, or PDF. - <em>Interoperable</em>: The spec maps closely to Vega-Lite, enabling R↔︎JS↔︎Python workflows.</p>
+<p><strong>Why specs matter:</strong> - <em>Serializable</em>: <code>jsonlite::toJSON(compile(spec)$spec)</code> gives you a JSON blob you can send to a server, save to a file, or embed in a document. - <em>Inspectable</em>: You can print, diff, and test specs without rendering. - <em>Multi-backend, eventually</em>: the spec doesn’t encode how it’s drawn, so other backends (standalone SVG, Canvas, WebGL, PDF) can be added later. Today only one backend is implemented: D3.js/SVG via htmlwidgets. - <em>Interoperable</em>: The spec maps closely to Vega-Lite, enabling R↔︎JS↔︎Python workflows.</p>
 <p>ggplot2’s <code>ggplot</code> objects contain grobs (grid graphics objects) that are tightly coupled to R’s graphics device system. You can’t serialize a ggplot to JSON, render it in a browser without conversion, or inspect it cleanly.</p>
 </div>
 <div class="section level3">
@@ -121,16 +121,14 @@ padding    →  all margins uniformly</code></pre>
 <p>The layout is part of the spec. This means: - Linked selections can propagate across panels - Shared scales are computed globally, not per-panel - The entire composition exports as one self-contained HTML</p>
 </div>
 <div class="section level3">
-<h3 id="id_7-multi-backend-compilation">7. Multi-Backend Compilation<a class="anchor" aria-label="anchor" href="#id_7-multi-backend-compilation"></a></h3>
-<p>The <code><a href="reference/compile.html">compile()</a></code> step translates the abstract spec into a backend-specific render tree:</p>
-<pre><code>                    ┌──► D3.js + SVG (&lt; 10K points)
+<h3 id="id_7-multi-backend-compilation-in-progress">7. Multi-Backend Compilation (in progress)<a class="anchor" aria-label="anchor" href="#id_7-multi-backend-compilation-in-progress"></a></h3>
+<p>The <code><a href="reference/compile.html">compile()</a></code> step translates the abstract spec into a backend-specific render tree. Only one backend is implemented today:</p>
+<pre><code>glyph_spec ──►  compile() ──► D3.js + SVG (htmlwidgets)
                     │
-glyph_spec ──►  compile() ──► Canvas 2D (10K–100K points)
-                    │
-                    ├──► WebGL / regl (100K+ points)
-                    │
-                    └──► Static SVG / PDF (export)</code></pre>
-<p>The compiler auto-selects based on data size but can be overridden. Each backend implements the same mark/scale/interaction semantics; only the rendering primitives differ.</p>
+                    ├──► Canvas 2D (planned, for 10K–100K points)
+                    ├──► WebGL / regl (planned, for 100K+ points)
+                    └──► Static SVG / PDF export (planned)</code></pre>
+<p>An earlier draft of <code><a href="reference/compile.html">compile()</a></code> picked an <code>engine</code> (“html”/“canvas”/“webgl”) by data size, but nothing downstream ever branched on that value — there was only ever the one D3/SVG renderer, so the “selection” did nothing. <code><a href="reference/compile.html">compile()</a></code> now only accepts <code>"auto"</code> (→ <code>"html"</code>) or <code>"html"</code>, and rejects other engines instead of silently accepting a value it can’t act on. When a Canvas/WebGL backend is actually built, each backend should implement the same mark/scale/interaction semantics; only the rendering primitives should differ.</p>
 </div>
 </div>
 <div class="section level2">

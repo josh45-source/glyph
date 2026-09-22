@@ -22,7 +22,10 @@ compile(spec, engine = "auto", width = NULL, height = NULL)
 
 - engine:
 
-  Rendering backend: "auto", "html", "svg", "canvas", "webgl"
+  Rendering backend. Only `"html"` (D3.js via htmlwidgets) is currently
+  implemented; `"auto"` resolves to `"html"`. Other values are rejected
+  — earlier versions accepted `"canvas"`/`"webgl"` and silently ignored
+  them (no such renderer ever existed), which was misleading.
 
 - width:
 

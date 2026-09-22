@@ -8,6 +8,8 @@ Build and inspect the visualization spec.
   : Create a Glyph Visualization
 - [`print(`*`<glyph_spec>`*`)`](https://josh45-source.github.io/glyph/reference/print.glyph_spec.md)
   : Auto-render when printed (like ggplot2)
+- [`summary(`*`<glyph_spec>`*`)`](https://josh45-source.github.io/glyph/reference/summary.glyph_spec.md)
+  : Summarize a glyph specification
 
 ## Marks
 
@@ -82,6 +84,8 @@ Multi-plot composition and auxiliary panels.
   : Layout Composition
 - [`compose()`](https://josh45-source.github.io/glyph/reference/compose.md)
   : Compose multiple glyph specs into a layout
+- [`print(`*`<glyph_layout>`*`)`](https://josh45-source.github.io/glyph/reference/print.glyph_layout.md)
+  : Print a glyph layout
 - [`marginals()`](https://josh45-source.github.io/glyph/reference/marginals.md)
   : Add a marginal plot (histogram/density on axes)
 - [`inset()`](https://josh45-source.github.io/glyph/reference/inset.md)

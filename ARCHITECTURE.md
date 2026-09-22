@@ -32,7 +32,9 @@ advantages:
 `jsonlite::toJSON(compile(spec)$spec)` gives you a JSON blob you can
 send to a server, save to a file, or embed in a document. -
 *Inspectable*: You can print, diff, and test specs without rendering. -
-*Multi-backend*: One spec compiles to D3, Canvas, WebGL, SVG, or PDF. -
+*Multi-backend, eventually*: the spec doesn’t encode how it’s drawn, so
+other backends (standalone SVG, Canvas, WebGL, PDF) can be added later.
+Today only one backend is implemented: D3.js/SVG via htmlwidgets. -
 *Interoperable*: The spec maps closely to Vega-Lite, enabling
 R↔︎JS↔︎Python workflows.
 
@@ -148,23 +150,30 @@ The layout is part of the spec. This means: - Linked selections can
 propagate across panels - Shared scales are computed globally, not
 per-panel - The entire composition exports as one self-contained HTML
 
-### 7. Multi-Backend Compilation
+### 7. Multi-Backend Compilation (in progress)
 
 The
 [`compile()`](https://josh45-source.github.io/glyph/reference/compile.md)
-step translates the abstract spec into a backend-specific render tree:
+step translates the abstract spec into a backend-specific render tree.
+Only one backend is implemented today:
 
-                        ┌──► D3.js + SVG (< 10K points)
+    glyph_spec ──►  compile() ──► D3.js + SVG (htmlwidgets)
                         │
-    glyph_spec ──►  compile() ──► Canvas 2D (10K–100K points)
-                        │
-                        ├──► WebGL / regl (100K+ points)
-                        │
-                        └──► Static SVG / PDF (export)
+                        ├──► Canvas 2D (planned, for 10K–100K points)
+                        ├──► WebGL / regl (planned, for 100K+ points)
+                        └──► Static SVG / PDF export (planned)
 
-The compiler auto-selects based on data size but can be overridden. Each
-backend implements the same mark/scale/interaction semantics; only the
-rendering primitives differ.
+An earlier draft of
+[`compile()`](https://josh45-source.github.io/glyph/reference/compile.md)
+picked an `engine` (“html”/“canvas”/“webgl”) by data size, but nothing
+downstream ever branched on that value — there was only ever the one
+D3/SVG renderer, so the “selection” did nothing.
+[`compile()`](https://josh45-source.github.io/glyph/reference/compile.md)
+now only accepts `"auto"` (→ `"html"`) or `"html"`, and rejects other
+engines instead of silently accepting a value it can’t act on. When a
+Canvas/WebGL backend is actually built, each backend should implement
+the same mark/scale/interaction semantics; only the rendering primitives
+should differ.
 
 ## What’s Hard (Honest Assessment)
 

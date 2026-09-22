@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">glyph</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.1.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -70,7 +70,12 @@
 
 <dt id="arg-smart-repel">smart_repel<a class="anchor" aria-label="anchor" href="#arg-smart-repel"></a></dt>
 <dd><p>Automatically avoid label overlaps (TRUE by default).
-This is a first-class feature, not an extension package.</p></dd>
+Inspired by <span class="pkg">ggrepel</span>, but simpler: rather than a full force-directed
+simulation, glyph resolves overlaps by iterative pairwise nudging —
+repeatedly comparing every pair of label bounding boxes and, for any
+pair that still overlaps, pushing them a small step apart vertically
+(up to 50 passes, stopping as soon as none overlap). This is a
+first-class feature, not an extension package.</p></dd>
 
 </dl></div>
     <div class="section level2">

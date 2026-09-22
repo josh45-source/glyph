@@ -16,8 +16,10 @@ export(spec, file, width = 800, height = 600)
 
 - file:
 
-  Output file path. Extension determines format: .html, .svg, .png,
-  .pdf, .json (exports the raw spec)
+  Output file path. Extension determines format. Currently implemented:
+  `.html` (self-contained interactive widget) and `.json` (the compiled
+  spec). Other extensions (`.svg`, `.png`, `.pdf`) are planned but not
+  yet implemented, and currently just print a message.
 
 - width:
 

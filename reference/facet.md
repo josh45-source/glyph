@@ -18,11 +18,13 @@ facet(spec, rows = NULL, cols = NULL, free_scales = "none", wrap = NULL)
 
 - rows:
 
-  Row faceting variable (bare name or NULL)
+  Row faceting variable: a bare column name, a computed expression (e.g.
+  `factor(cyl)`), or `NULL`
 
 - cols:
 
-  Column faceting variable (bare name or NULL)
+  Column faceting variable: a bare column name, a computed expression,
+  or `NULL`
 
 - free_scales:
 

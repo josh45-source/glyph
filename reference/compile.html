@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">glyph</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.1.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -63,7 +63,10 @@
 
 
 <dt id="arg-engine">engine<a class="anchor" aria-label="anchor" href="#arg-engine"></a></dt>
-<dd><p>Rendering backend: "auto", "html", "svg", "canvas", "webgl"</p></dd>
+<dd><p>Rendering backend. Only <code>"html"</code> (D3.js via htmlwidgets) is
+currently implemented; <code>"auto"</code> resolves to <code>"html"</code>. Other values are
+rejected — earlier versions accepted <code>"canvas"</code>/<code>"webgl"</code> and silently
+ignored them (no such renderer ever existed), which was misleading.</p></dd>
 
 
 <dt id="arg-width">width<a class="anchor" aria-label="anchor" href="#arg-width"></a></dt>
