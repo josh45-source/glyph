@@ -672,6 +672,9 @@ function drawPoints(g, data, enc, scales, style, w, h, interact, theme, markRegi
   registerMark(markRegistry, points, baseOpacity);
 
   // Interactivity
+  // Shared by brush and zoom so a drag resolves to exactly one of them.
+  const dragState = createDragState(interact);
+
   if (interact.tooltip?.enabled) {
     addTooltip(points, data, enc, interact.tooltip, theme);
   }
@@ -679,10 +682,10 @@ function drawPoints(g, data, enc, scales, style, w, h, interact, theme, markRegi
     addHoverEffect(points, interact.hover, style);
   }
   if (interact.brush?.enabled) {
-    addBrush(g, points, scales, enc, interact.brush, markRegistry, w, h);
+    addBrush(g, points, scales, enc, interact.brush, markRegistry, w, h, dragState);
   }
   if (interact.zoom?.enabled) {
-    addZoom(g.node().parentNode, g, scales, enc, points, "point");
+    addZoom(g.node().parentNode, g, scales, enc, points, "point", dragState);
   }
   if (interact.click?.enabled) {
     addClickSelect(points, interact.click.action, baseOpacity, markRegistry);
@@ -1156,6 +1159,37 @@ function nearestPointWithin(points, scales, enc, mx, my, tolerance) {
   return (nearest && nearestDist < tolerance) ? nearest : null;
 }
 
+// ---- Drag mode (zoom vs brush) ----------------------------------------------
+//
+// Zoom binds its drag to the <svg>; brush binds its drag to an overlay rect
+// *inside* that <svg>. A mousedown on the overlay therefore reaches both, so
+// with zoom and brush on the same mark a single drag used to pan and brush at
+// once. Both behaviors now consult this shared per-plot state through their
+// d3 `.filter()`, so a drag only ever does one of the two. Wheel, trackpad
+// pinch and two-finger pinch always zoom regardless of the mode.
+function createDragState(interact) {
+  const brushEnabled = !!(interact && interact.brush && interact.brush.enabled);
+  const zoomEnabled = !!(interact && interact.zoom && interact.zoom.enabled);
+  return {
+    brushEnabled,
+    zoomEnabled,
+    // Brushing is the default whenever it's available: it's the mode that
+    // can't be reached any other way (wheel/pinch/double-tap all zoom).
+    mode: brushEnabled ? "brush" : "pan",
+    listeners: []
+  };
+}
+
+function setDragMode(dragState, mode) {
+  if (!dragState || dragState.mode === mode) return;
+  dragState.mode = mode;
+  dragState.listeners.forEach(fn => fn(mode));
+}
+
+function dragModeOf(dragState, fallback) {
+  return dragState ? dragState.mode : fallback;
+}
+
 // ---- Tooltip ----------------------------------------------------------------
 
 let glyphTooltipCounter = 0;
@@ -1279,10 +1313,31 @@ function addClickSelect(selection, action, baseOpacity, markRegistry) {
 
 let glyphBrushCounter = 0;
 
-function addBrush(g, points, scales, enc, brushConfig, markRegistry, w, h) {
+function addBrush(g, points, scales, enc, brushConfig, markRegistry, w, h, dragState) {
   const baseOpacity = +points.attr("opacity") || 0.8;
+
+  // Forwards a tap/click that landed on the brush overlay to the point
+  // underneath it, so tooltips and click-select still respond. Called from
+  // two places: the brush's own "end" (a no-drag tap in brush mode) and a
+  // plain click listener (pan mode, where no brush gesture runs at all).
+  function forwardTapToPoint(event, node) {
+    const [mx, my] = pointerXY(event, g.node());
+    const nearest = nearestPointWithin(points, scales, enc, mx, my, 12);
+    if (!nearest) return false;
+    nearest.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    return true;
+  }
+
   const brush = d3.brush()
     .extent([[0, 0], [w, h]])
+    // Only begin a brush when the drag is meant to brush. Without this the
+    // same mousedown also starts a zoom pan (see createDragState). Two
+    // fingers is always a pinch-zoom, never a brush.
+    .filter(function(event) {
+      const mode = dragModeOf(dragState, "brush");
+      if (event.touches) return event.touches.length < 2 && mode === "brush";
+      return !event.button && !event.ctrlKey && mode === "brush";
+    })
     .on("brush end", function(event) {
       const selection = event.selection;
       if (!selection) {
@@ -1300,15 +1355,14 @@ function addBrush(g, points, scales, enc, brushConfig, markRegistry, w, h) {
         // work with brushing enabled.
         if (event.sourceEvent) {
           const [mx, my] = pointerXY(event.sourceEvent, g.node());
-          const nearest = nearestPointWithin(points, scales, enc, mx, my, 12);
-          if (nearest) {
+          if (nearestPointWithin(points, scales, enc, mx, my, 12)) {
             // Without this, the browser's own touch-to-click synthesis
             // still fires shortly after, targeting the overlay (since it's
             // still what's topmost at that screen position); that bubbles
             // to document and immediately dismisses the tooltip we just
             // forwarded a click to via the "tap outside" listeners above.
             if (event.sourceEvent.cancelable) event.sourceEvent.preventDefault();
-            nearest.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+            forwardTapToPoint(event.sourceEvent, this);
           }
         }
         return;
@@ -1329,6 +1383,57 @@ function addBrush(g, points, scales, enc, brushConfig, markRegistry, w, h) {
 
   const brushG = g.append("g").attr("class", "brush").call(brush);
 
+  // In pan mode the brush filter rejects the gesture outright, so no "end"
+  // ever fires and the tap-forwarding above never runs — but the overlay is
+  // still on top of the marks and still swallows the tap. Forward it here
+  // instead. stopPropagation keeps the original overlay-targeted event from
+  // reaching the tooltip's document-level dismiss listener, which would
+  // otherwise hide the tooltip we just opened.
+  //
+  // Touch needs its own path rather than riding on the click the browser
+  // synthesizes from a tap: d3-zoom (unlike d3-brush) doesn't preventDefault
+  // on touch, so the browser also emits a compatibility mouse sequence whose
+  // trailing mouseout would immediately hide the tooltip again. Handling
+  // touchend directly and preventing the default suppresses that sequence —
+  // and with it the synthetic click, so the two paths can't both fire.
+  let touchStartXY = null;
+  let lastTouchAt = 0;
+  brushG
+    .on("touchstart.glyph-tap-forward", function(event) {
+      lastTouchAt = Date.now();
+      const t = (event.touches && event.touches.length === 1) ? event.touches[0] : null;
+      touchStartXY = t ? [t.clientX, t.clientY] : null;
+    })
+    .on("touchend.glyph-tap-forward", function(event) {
+      lastTouchAt = Date.now();
+      if (dragModeOf(dragState, "brush") !== "pan") return;
+      if (event.touches && event.touches.length) return;
+
+      const t = event.changedTouches && event.changedTouches[0];
+      const start = touchStartXY;
+      touchStartXY = null;
+      // Only a tap, not the end of a pan drag.
+      if (!t || !start || Math.hypot(t.clientX - start[0], t.clientY - start[1]) > 10) return;
+
+      if (forwardTapToPoint(event, this)) {
+        if (event.cancelable) event.preventDefault();
+        event.stopPropagation();
+      }
+    })
+    .on("click.glyph-tap-forward", function(event) {
+      if (dragModeOf(dragState, "brush") !== "pan") return;
+      if (forwardTapToPoint(event, this)) event.stopPropagation();
+    });
+
+  // Mode-dependent cursor, so which thing a drag will do is visible before
+  // the user commits to the gesture.
+  if (dragState && dragState.zoomEnabled) {
+    const overlay = brushG.select(".overlay");
+    const syncCursor = (mode) => overlay.style("cursor", mode === "brush" ? "crosshair" : "grab");
+    dragState.listeners.push(syncCursor);
+    syncCursor(dragState.mode);
+  }
+
   // The overlay swallows continuous mouse hover the same way it swallows a
   // tap (see above) — but hover has no discrete "end" event to hook into,
   // so forward mousemove/mouseleave directly instead. This only reads
@@ -1345,9 +1450,13 @@ function addBrush(g, points, scales, enc, brushConfig, markRegistry, w, h) {
   // on just .overlay would misfire every time the pointer crossed from the
   // overlay onto one of those sibling elements.
   let hoveredNode = null;
+  // A tap also produces a compatibility mouse sequence on most touch
+  // browsers, ending in a mouseout that would hide the tooltip the tap just
+  // opened. Ignore mouse hover for a moment after any touch.
+  const isSyntheticFromTouch = () => Date.now() - lastTouchAt < 600;
   brushG
     .on("mousemove.glyph-hover-forward", function(event) {
-      if (event.buttons) return;
+      if (event.buttons || isSyntheticFromTouch()) return;
       const [mx, my] = pointerXY(event, g.node());
       const nearest = nearestPointWithin(points, scales, enc, mx, my, 12);
       if (nearest !== hoveredNode) {
@@ -1366,6 +1475,7 @@ function addBrush(g, points, scales, enc, brushConfig, markRegistry, w, h) {
       }
     })
     .on("mouseleave.glyph-hover-forward", function() {
+      if (isSyntheticFromTouch()) return;
       if (hoveredNode) {
         hoveredNode.dispatchEvent(new MouseEvent("mouseout", { bubbles: true }));
         hoveredNode = null;
@@ -1377,68 +1487,223 @@ function addBrush(g, points, scales, enc, brushConfig, markRegistry, w, h) {
   // the widget entirely) previously did nothing. Clear it there too, so a
   // touch user has an obvious way to dismiss a brush without having to land
   // precisely back inside the plot.
-  const svgNode = g.node().closest("svg");
-  if (svgNode) {
-    const ns = "glyph-brush-" + (glyphBrushCounter++);
-    d3.select(document).on(`click.${ns} touchend.${ns}`, function(event) {
-      if (svgNode.contains(event.target)) return;
-      if (d3.brushSelection(brushG.node())) brush.move(brushG, null);
-    });
-  }
+  const ns = "glyph-brush-" + (glyphBrushCounter++);
+  d3.select(document).on(`click.${ns} touchend.${ns}`, function(event) {
+    const target = event.target;
+    // Inside the brush's own group (overlay, selection rect, resize
+    // handles) d3.brush already decides what a tap means — including
+    // clearing on a no-drag tap — so don't double-handle those.
+    if (brushG.node().contains(target)) return;
+    // The plot's own controls (drag-mode toggle, reset zoom) sit next to
+    // the <svg> rather than inside it, so they'd otherwise read as "tapped
+    // away from the plot" and throw away the selection the user is
+    // switching modes or resetting the view to look at.
+    if (target && target.closest && target.closest(".glyph-controls")) return;
+    if (d3.brushSelection(brushG.node())) brush.move(brushG, null);
+  });
 }
 
 // ---- Zoom -------------------------------------------------------------------
 
-function addZoom(svgNode, g, scales, enc, marks, markType) {
+function addZoom(svgNode, g, scales, enc, marks, markType, dragState) {
   const svgSel = d3.select(svgNode);
+
+  // The plot group already carries the axis-margin translate. Compose the
+  // zoom transform with it rather than replacing it — otherwise the whole
+  // plot (marks, axes and the brush overlay alike) jumps by the padding
+  // offset the moment the first zoom or pan happens.
+  const baseTransform = g.attr("transform") || "";
+
   const zoom = d3.zoom()
     .scaleExtent([0.5, 20])
+    // Wheel (including a trackpad pinch, which arrives as ctrl+wheel) and
+    // double-click always zoom. A drag only pans when the drag mode says
+    // so, so it can't pan and brush at the same time; two fingers is always
+    // a pinch-zoom whatever the mode.
+    .filter(function(event) {
+      if (event.type === "wheel" || event.type === "dblclick") return !event.button;
+      if (event.touches) {
+        return event.touches.length >= 2 || dragModeOf(dragState, "pan") === "pan";
+      }
+      return !event.button && !event.ctrlKey && dragModeOf(dragState, "pan") === "pan";
+    })
     .on("zoom", function({ transform }) {
-      g.attr("transform", transform);
+      g.attr("transform", `${baseTransform} ${transform}`);
     });
 
   svgSel.call(zoom);
 
   // d3-zoom's own double-click handler always zooms IN, with no built-in way
-  // back out — and its touch code detects a double-tap and re-dispatches it
-  // through whichever handler is bound to "dblclick.zoom", so replacing that
-  // listener covers both mouse dblclick and touch double-tap. If already
-  // zoomed in, reset to identity instead of zooming in further (mobile users
-  // who double-tap to zoom previously had no way back out).
-  svgSel.on("dblclick.zoom", function(event) {
-    if (event.preventDefault) event.preventDefault();
-    const current = d3.zoomTransform(this);
-    const sel = d3.select(this);
+  // back out. If already zoomed in, reset to identity instead of zooming in
+  // further (mobile users who double-tap to zoom previously had no way out).
+  let lastDoubleHandled = 0;
+  function handleDoubleZoom(node, event) {
+    // A double-tap can arrive by three routes — d3-zoom forwarding its own
+    // touch detection to "dblclick.zoom", the browser synthesizing a real
+    // dblclick after a tap pair, and the fallback detector below — so
+    // collapse anything that arrives twice in quick succession into one.
+    const now = Date.now();
+    if (now - lastDoubleHandled < 400) return;
+    lastDoubleHandled = now;
+
+    const current = d3.zoomTransform(node);
+    const sel = d3.select(node);
     if (current.k > 1.01) {
       sel.transition().duration(300).call(zoom.transform, d3.zoomIdentity);
     } else {
-      const center = pointerXY(event, this);
+      const center = pointerXY(event, node);
       sel.transition().duration(300).call(zoom.scaleBy, 2, center);
     }
+  }
+
+  svgSel.on("dblclick.zoom", function(event) {
+    if (event.preventDefault) event.preventDefault();
+    handleDoubleZoom(this, event);
   });
 
-  addZoomResetControl(svgNode, zoom, svgSel);
+  // d3-zoom only detects a touch double-tap inside the touchstart gesture it
+  // admitted, so in brush mode (where the filter rejects a one-finger
+  // touchstart) its detection never runs. Detect the double-tap here instead
+  // and route it to the same handler, so double-tap zoom/reset works in both
+  // drag modes. Movement between touchstart and touchend disqualifies the
+  // gesture, so finishing a brush drag near a previous tap isn't read as one.
+  let tapStartXY = null, lastTapAt = 0, lastTapXY = null;
+
+  // Two-finger pinch, handled here rather than left to d3-zoom's own touch
+  // support. When a brush is on the same plot, the one-finger gesture that
+  // starts first is a brush, and d3-brush calls stopImmediatePropagation on
+  // every later touchmove — so a second finger never reaches d3-zoom's
+  // listeners at all. These run in the capture phase, before anything
+  // downstream can intercept them, and stop the event so neither d3-zoom nor
+  // the brush acts on the same fingers. The transform still goes through the
+  // zoom behavior, so reset, double-tap and the wheel stay consistent.
+  let pinch = null;
+  const pinchDistance = (touches) =>
+    Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
+  const pinchMidpoint = (touches, node) => {
+    const a = d3.pointer(touches[0], node);
+    const b = d3.pointer(touches[1], node);
+    return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+  };
+
+  svgNode.addEventListener("touchstart", function(event) {
+    if (!event.touches || event.touches.length < 2) return;
+    event.stopImmediatePropagation();
+    // A pinch is never a tap or a double-tap.
+    tapStartXY = null;
+    lastTapXY = null;
+    const transform = d3.zoomTransform(svgNode);
+    pinch = {
+      distance: pinchDistance(event.touches),
+      transform,
+      // Anchor in untransformed content space, so the point between the
+      // fingers stays put as they move and spread.
+      anchor: transform.invert(pinchMidpoint(event.touches, svgNode))
+    };
+  }, true);
+
+  svgNode.addEventListener("touchmove", function(event) {
+    if (!pinch || !event.touches || event.touches.length < 2) return;
+    if (event.cancelable) event.preventDefault();
+    event.stopImmediatePropagation();
+
+    const ratio = pinch.distance > 0 ? pinchDistance(event.touches) / pinch.distance : 1;
+    const k = Math.max(0.5, Math.min(20, pinch.transform.k * ratio));
+    const mid = pinchMidpoint(event.touches, svgNode);
+    svgSel.call(
+      zoom.transform,
+      d3.zoomIdentity.translate(mid[0] - pinch.anchor[0] * k, mid[1] - pinch.anchor[1] * k).scale(k)
+    );
+  }, true);
+
+  svgNode.addEventListener("touchend", function(event) {
+    if (!pinch) return;
+    if (event.touches && event.touches.length >= 2) return;
+    event.stopImmediatePropagation();
+    pinch = null;
+    lastTapXY = null;
+  }, true);
+
+  svgSel
+    .on("touchstart.glyph-dbltap", function(event) {
+      const t = (event.touches && event.touches.length === 1) ? event.touches[0] : null;
+      tapStartXY = t ? [t.clientX, t.clientY] : null;
+    })
+    .on("touchend.glyph-dbltap", function(event) {
+      if (event.touches && event.touches.length > 0) return;
+      const touch = event.changedTouches && event.changedTouches[0];
+      if (!touch || !tapStartXY) { lastTapXY = null; return; }
+
+      const xy = [touch.clientX, touch.clientY];
+      const moved = Math.hypot(xy[0] - tapStartXY[0], xy[1] - tapStartXY[1]);
+      tapStartXY = null;
+      if (moved > 10) { lastTapXY = null; return; }
+
+      const now = Date.now();
+      const isDouble = lastTapXY && (now - lastTapAt) < 500 &&
+        Math.hypot(xy[0] - lastTapXY[0], xy[1] - lastTapXY[1]) < 20;
+      if (isDouble) {
+        lastTapXY = null;
+        handleDoubleZoom(this, event);
+      } else {
+        lastTapAt = now;
+        lastTapXY = xy;
+      }
+    });
+
+  addZoomControls(svgNode, zoom, svgSel, dragState);
 }
 
-// Small always-visible control that resets a zoomed/panned plot back to its
-// identity transform — the only way back out on a touch device, which has
-// no scroll wheel to zoom back out with.
-function addZoomResetControl(svgNode, zoom, svgSel) {
+// Small always-visible controls in the plot's top-right corner: a reset for
+// a zoomed/panned plot (the only way back out on a touch device, which has
+// no scroll wheel to zoom back out with) and — only when a drag is ambiguous
+// because both zoom and brush are enabled — a toggle for what a drag does.
+function addZoomControls(svgNode, zoom, svgSel, dragState) {
   const hostEl = svgNode.parentNode;
-  if (!hostEl || hostEl.querySelector(".glyph-zoom-reset")) return;
+  if (!hostEl || hostEl.querySelector(".glyph-controls")) return;
   if (getComputedStyle(hostEl).position === "static") hostEl.style.position = "relative";
 
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = "glyph-zoom-reset";
-  btn.textContent = "⟲ Reset zoom";
-  btn.style.cssText = "position:absolute;top:4px;right:4px;font-size:11px;line-height:1.2;" +
-    "padding:2px 8px;cursor:pointer;z-index:2;background:rgba(255,255,255,0.9);" +
-    "border:1px solid #ccc;border-radius:3px;color:#333;";
-  btn.addEventListener("click", () => {
+  const bar = document.createElement("div");
+  bar.className = "glyph-controls";
+  bar.style.cssText = "position:absolute;top:4px;right:4px;z-index:2;display:flex;gap:4px;";
+
+  const btnCss = "font-size:11px;line-height:1.2;padding:2px 8px;cursor:pointer;" +
+    "background:rgba(255,255,255,0.9);border:1px solid #ccc;border-radius:3px;color:#333;";
+
+  if (dragState && dragState.brushEnabled && dragState.zoomEnabled) {
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "glyph-drag-mode";
+    toggle.style.cssText = btnCss;
+
+    const sync = (mode) => {
+      toggle.textContent = mode === "brush" ? "▨ Drag: select" : "✋ Drag: pan";
+      toggle.title = mode === "brush"
+        ? "Dragging selects points. Click to switch to panning."
+        : "Dragging pans the plot. Click to switch to selecting.";
+      toggle.setAttribute("aria-label", toggle.title);
+      toggle.setAttribute("aria-pressed", mode === "brush" ? "true" : "false");
+    };
+    dragState.listeners.push(sync);
+    sync(dragState.mode);
+
+    toggle.addEventListener("click", () => {
+      setDragMode(dragState, dragState.mode === "brush" ? "pan" : "brush");
+    });
+    bar.appendChild(toggle);
+  }
+
+  const reset = document.createElement("button");
+  reset.type = "button";
+  reset.className = "glyph-zoom-reset";
+  reset.textContent = "⟲ Reset zoom";
+  reset.style.cssText = btnCss;
+  reset.addEventListener("click", () => {
     svgSel.transition().duration(300).call(zoom.transform, d3.zoomIdentity);
   });
-  hostEl.appendChild(btn);
+  bar.appendChild(reset);
+
+  hostEl.appendChild(bar);
 }
 
 // ---- Nearest point (for line charts) ----------------------------------------
