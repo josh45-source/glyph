@@ -3,7 +3,7 @@
 > A next-generation grammar of interactive graphics for R.
 
 **glyph** is a visualization package that treats interactivity, animation,
-and composable layouts as first-class grammar concepts — not afterthoughts
+and composable layouts as first-class grammar concepts not afterthoughts
 bolted on via extension packages.
 
 ## Design Philosophy
@@ -253,3 +253,9 @@ Bostock, ISC License); see `inst/COPYRIGHTS` for the full notice.
 ## License
 
 MIT
+
+## Support This Project
+
+If glyph has been useful to you, please consider sponsoring its development on Patreon — it helps keep the project maintained.
+
+[![Support on Patreon](https://img.shields.io/badge/Patreon-Support-f96854?logo=patreon&logoColor=white)](https://www.patreon.com/c/Joshfarm/membership)
