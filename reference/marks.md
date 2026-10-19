@@ -3,6 +3,13 @@
 Marks are the layers that draw data: points, lines, bars, areas, text,
 rules, ribbons and links. Each `mark_*()` call adds one layer to the
 spec.
+[`mark_boxplot()`](https://josh45-source.github.io/glyph/reference/mark_boxplot.md),
+[`mark_violin()`](https://josh45-source.github.io/glyph/reference/mark_violin.md),
+[`mark_sina()`](https://josh45-source.github.io/glyph/reference/mark_sina.md)
+and
+[`mark_histogram()`](https://josh45-source.github.io/glyph/reference/mark_histogram.md)
+summarise the distribution of a variable; their statistics are computed
+from the data when the plot is compiled.
 
 Mappings are passed as bare column names or expressions, and are added
 to the global mappings set in

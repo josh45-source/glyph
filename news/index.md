@@ -2,6 +2,39 @@
 
 ## glyph (development version)
 
+- New statistical marks
+  ([\#6](https://github.com/josh45-source/glyph/issues/6)):
+  [`mark_boxplot()`](https://josh45-source.github.io/glyph/reference/mark_boxplot.md),
+  [`mark_violin()`](https://josh45-source.github.io/glyph/reference/mark_violin.md),
+  [`mark_sina()`](https://josh45-source.github.io/glyph/reference/mark_sina.md)
+  and
+  [`mark_histogram()`](https://josh45-source.github.io/glyph/reference/mark_histogram.md).
+  Their statistics are computed in R when the plot is compiled, with
+  [`stats::quantile()`](https://rdrr.io/r/stats/quantile.html),
+  [`stats::density()`](https://rdrr.io/r/stats/density.html) and
+  [`hist()`](https://rdrr.io/r/graphics/hist.html)-style bins, after
+  computed mappings are evaluated and rows with missing values are
+  dropped. They work with
+  [`facet()`](https://josh45-source.github.io/glyph/reference/facet.md)
+  (summaries are computed per panel),
+  [`compose()`](https://josh45-source.github.io/glyph/reference/compose.md),
+  theme tokens, tooltips (which show the statistics), hover, click and
+  brushing. Each box, violin or bin knows which rows it summarises, so
+  brushing points or linked panels highlights the boxes and bins that
+  contain the selected rows, and brushing a box selects its rows.
+- Brushing and zooming now apply to the whole plot rather than to each
+  point mark separately. A plot with several brushable marks gets one
+  brush that covers all of them, and `interact(zoom = TRUE)` now zooms
+  plots that have no point mark.
+- Points on a categorical x axis are now drawn in the middle of their
+  category instead of at its left edge.
+- A quantitative axis now spans the values of every mark in the plot,
+  not just the first, so a second mark with a wider range is no longer
+  cut off.
+- Automatic tooltips show a computed mapping by its expression (e.g.
+  `factor(cyl)`) instead of its internal column name, and tooltip
+  templates can refer to fields whose names contain dots, such as
+  `{.median}`.
 - Plots and layouts now draw automatically in R Markdown, Quarto and
   vignettes, without ending the pipeline with
   [`render()`](https://josh45-source.github.io/glyph/reference/render.md)
