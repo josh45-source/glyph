@@ -1,226 +1,191 @@
 # glyph <img src="man/figures/logo.png" align="right" height="139" />
 
-> A next-generation grammar of interactive graphics for R.
-
-**glyph** is a visualization package that treats interactivity, animation,
-and composable layouts as first-class grammar concepts not afterthoughts
-bolted on via extension packages.
-
-## Design Philosophy
-
-glyph is built on three convictions:
-
-1. **The spec is the plot.** A glyph visualization is a pure data structure
-   (a nested list) that fully describes what to draw, how to interact, and
-   how to animate. This spec can be inspected, serialized to JSON, exported
-   to Vega-Lite, and compiled to different rendering backends.
-
-2. **Interactivity is grammar, not glue.** Tooltips, brushing, zoom, linked
-   views, and animated transitions are declared in the same pipeline as
-   marks and scales. They are part of the specification, not a post-hoc
-   conversion.
-
-3. **Composition is built in.** Multi-plot layouts, marginal distributions,
-   inset plots, and cross-filtered dashboards don't need separate packages.
+<!-- TODO(joash): write the intro in your own words -->
 
 ## Installation
 
 ```r
-# Install from GitHub (once published)
-# remotes::install_github("yourname/glyph")
+install.packages("glyph")
 
-# For now, install from local source:
-devtools::install("path/to/glyph")
+# Development version
+# remotes::install_github("josh45-source/glyph")
 ```
 
-## Quick Start
+## A first plot
 
 ```r
 library(glyph)
 
-# Basic scatterplot — no aes() needed
 glyph(mtcars, x = wt, y = mpg) |>
   mark_point(color = cyl, size = hp)
 ```
 
+`glyph()` takes the data and the mappings shared by every mark. Mappings are
+bare column names, or expressions such as `log(wt)` or `factor(cyl)`. Each
+`mark_*()` adds a layer and can add mappings of its own.
+
+The result is a specification: a plain R list that describes the data, the
+marks, the scales, the interactions and the animation. Nothing is drawn until
+it is printed or rendered. At that point `compile()` turns the spec into JSON
+and a D3 renderer draws it in the browser as an htmlwidget.
+
+## Drawing a plot
+
+Plots print automatically. Type the name of a plot at the console, or leave
+it as the last value of a pipeline, and it is drawn in the viewer. You only
+need `render()` when you want to set the width and height yourself:
+
 ```r
-# Interactive with tooltips and zoom
+p <- glyph(mtcars, x = wt, y = mpg) |> mark_point()
+
+p                                    # drawn at the default size
+render(p, width = 600, height = 400) # drawn at 600 x 400
+```
+
+There are two cases where you do need `render()`. Layouts built with
+`compose()` print a short text summary. And in R Markdown, Quarto and
+vignettes the code runs non-interactively, so printing a plot there gives a
+one-line description. End the pipeline with `render()` in both cases.
+
+## Interaction
+
+Tooltips, hover effects, zoom and brushing are part of the spec. They are
+added with `interact()`:
+
+```r
 glyph(mtcars, x = wt, y = mpg) |>
   mark_point(color = cyl) |>
   interact(
     tooltip = "{cyl} cyl, {mpg} mpg at {wt} tons",
     zoom = TRUE,
     hover = "enlarge"
-  ) |>
-  theme_tokens(preset = "dark") |>
-  titles(title = "Motor Trend Cars", subtitle = "Weight vs fuel efficiency")
+  )
 ```
 
+A tooltip can be `TRUE`, which lists every mapped column, or a template with
+column names in braces. Named selections, including a clickable legend, come
+from `selection()`.
+
+## Animation
+
+`animate()` sets how marks enter and how they move between states.
+
 ```r
-# Animated bar chart
 glyph(mtcars, x = cyl, y = mpg) |>
   mark_bar() |>
   animate(transition = "slide", stagger = 80, easing = "bounce") |>
   scale("y", zero = TRUE, label = "Miles per gallon")
 ```
 
-```r
-# Composed layout with linked brushing
-p1 <- glyph(mtcars, x = wt, y = mpg) |> mark_point(color = cyl)
-p2 <- glyph(mtcars, x = hp, y = mpg) |> mark_point(color = cyl)
-p3 <- glyph(mtcars, x = wt, y = hp) |> mark_line()
+With `by`, the plot steps through groups of the data and the marks move from
+one group to the next. A play/pause control is added to the plot.
 
-compose(p1, p2, p3,
-        type = "wrap",
-        linked_selections = TRUE,
-        gap = 15)
+```r
+glyph(mtcars, x = wt, y = mpg) |>
+  mark_point(size = hp, color = cyl) |>
+  animate(by = gear, transition = "morph", duration = 800)
 ```
 
+## Layout
+
+Several plots can share one widget. With `linked_selections = TRUE`, brushing
+points in one panel highlights the same rows in the others.
+
 ```r
-# Marginal distributions (built-in, no ggExtra)
+p1 <- glyph(mtcars, x = wt, y = mpg) |>
+  mark_point(color = cyl) |>
+  interact(brush = TRUE)
+p2 <- glyph(mtcars, x = hp, y = mpg) |>
+  mark_point(color = cyl) |>
+  interact(brush = TRUE)
+
+compose(p1, p2, type = "hstack", linked_selections = TRUE) |>
+  render()
+```
+
+`facet()` splits one plot into small multiples. `marginals()` adds a
+histogram, density curve or boxplot along each axis. `inset()` places a
+second plot in a corner of the first.
+
+```r
 glyph(mtcars, x = wt, y = mpg) |>
   mark_point(color = cyl) |>
   marginals(x = "histogram", y = "density")
 ```
 
-## How glyph Compares to ggplot2
+## Themes
 
-### API Ergonomics
-
-| Feature | ggplot2 | glyph |
-|---|---|---|
-| Aesthetic mapping | `aes(x = wt, y = mpg)` | `x = wt, y = mpg` (bare names) |
-| Color palette | `scale_color_brewer(palette="Set2")` | `scale_color("Set2")` |
-| Log scale | `scale_y_log10()` | `scale_log("y")` |
-| Plot title | `labs(title = "...", subtitle = "...")` | `titles(title = "...", subtitle = "...")` |
-| Theme | `theme(text = element_text(family = "..."), ...)` (90+ args) | `theme_tokens(font = "...", bg = "...", grid = "y")` (token cascade) |
-| Faceting | `facet_wrap(~cyl)` or `facet_grid(rows = vars(cyl))` | `facet(cols = cyl, free_scales = "both")` |
-
-### Capability Comparison
-
-| Capability | ggplot2 | glyph |
-|---|---|---|
-| Static 2D plots | ✅ Excellent | ✅ Excellent |
-| Tooltips | ❌ Requires `plotly::ggplotly()` | ✅ Built-in |
-| Zoom & pan | ❌ Requires `plotly` | ✅ Built-in |
-| Brush selection | ❌ Requires `plotly` or Shiny | ✅ Built-in |
-| Linked views | ❌ Requires Shiny + custom code | ✅ `compose(linked_selections = TRUE)` |
-| Animation | ❌ Requires `gganimate` | ✅ `animate()` in pipeline |
-| Multi-plot layout | ❌ Requires `patchwork`/`cowplot` | ✅ `compose()` built-in |
-| Marginal plots | ❌ Requires `ggExtra` | ✅ `marginals()` built-in |
-| Inset plots | ❌ Manual grid/viewport hacking | ✅ `inset()` built-in |
-| Smart label repulsion | ❌ Requires `ggrepel` | ✅ `mark_text(smart_repel = TRUE)` |
-| Vega-Lite export | ❌ Not possible | ✅ `to_vegalite()` |
-| Large data (>100K pts) | ⚠️ Slow (grob tree) | ⚠️ Not yet optimized — Canvas/WebGL backends are planned |
-| Theme presets | ⚠️ `theme_minimal()`, etc. | ✅ `theme_tokens(preset = "dark")` with auto-contrast |
-| Per-mark data | ⚠️ Awkward `data` param override | ✅ Each mark can have own data |
-| Cross-filter dashboard | ❌ Requires Shiny | ✅ Declarative `crossfilter = TRUE` |
-
-### What ggplot2 Still Does Better
-
-- **Ecosystem breadth**: 100+ extension packages for niche chart types
-- **Community knowledge**: millions of StackOverflow answers, tutorials, books
-- **Statistical transforms**: `stat_smooth()`, `stat_density2d()`, etc. are deeply integrated
-- **Print-quality output**: decades of R graphics device tuning
-- **Stability**: battle-tested on millions of real-world plots
-
-## Architecture
-
-```
-User API              Spec (pure data)          Backends
-─────────           ──────────────────        ──────────
-glyph() ──┐
-mark_*()  ├──►  glyph_spec (R list)  ──►  compile() ──►  html (D3/htmlwidgets)
-scale()   │     serializable to JSON        │              svg (planned)
-animate() │     inspectable                 │              canvas (planned)
-compose() ┘     exportable                  │              webgl (planned)
-                                            │              pdf (planned)
-                                            └──►  to_vegalite() (interop)
-```
-
-The key insight: **separation of specification from rendering**. The
-`glyph_spec` is a plain data structure independent of how it's drawn, so
-new backends (static SVG export, Canvas, WebGL) can be added later without
-changing the user-facing code. Today, `compile()` only implements one
-backend: an interactive HTML widget via D3.js/SVG.
-
-## Rendering Backends
-
-| Backend | Status | Use Case | Interactive |
-|---|---|---|---|
-| `html` (default) | ✅ Implemented | Exploration, dashboards | ✅ Full |
-| `svg` | 🔜 Planned | Publication, export | ❌ Static |
-| `canvas` | 🔜 Planned | Medium-large data | ✅ Tooltips + zoom |
-| `webgl` | 🔜 Planned | Very large data | ⚠️ Basic |
-| `pdf` | 🔜 Planned | Print | ❌ Static |
-
-`compile(engine = ...)` currently only accepts `"auto"` (equivalent to
-`"html"`) or `"html"` explicitly; other engines aren't implemented yet and
-are rejected rather than silently ignored.
-
-## Token-Based Theming
-
-Instead of ggplot2's 90+ `theme()` arguments, glyph uses design tokens
-that cascade:
+Colours, fonts and spacing come from a small set of tokens: font,
+background, foreground, accent, grid and padding. Set a few and the rest are
+derived. A dark background gets light
+text and a grid colour that still shows up against it.
 
 ```r
-# ggplot2: verbose, flat
-ggplot(mtcars, aes(wt, mpg)) +
-  geom_point() +
-  theme(
-    text = element_text(family = "Inter", size = 12),
-    plot.background = element_rect(fill = "#1a1a2e"),
-    panel.background = element_rect(fill = "#1a1a2e"),
-    axis.text = element_text(color = "#e0e0e0"),
-    axis.title = element_text(color = "#e0e0e0"),
-    panel.grid = element_line(color = "#2a2a4a"),
-    plot.title = element_text(color = "#e0e0e0", size = 16)
-  )
-
-# glyph: tokens cascade automatically
 glyph(mtcars, x = wt, y = mpg) |>
   mark_point() |>
-  theme_tokens(font = "Inter", bg = "#1a1a2e")
-  # fg, grid_color, title color all auto-derived for contrast
+  theme_tokens(font = "Inter", bg = "#1a1a2e") |>
+  titles(title = "Motor Trend Cars", subtitle = "Weight vs fuel efficiency")
 ```
 
-## Roadmap
+There are five presets: `"light"`, `"dark"`, `"minimal"`, `"publication"`
+and `"presentation"`. Use one with `theme_tokens(preset = "dark")`.
 
-### v0.1 (This Prototype)
-- [x] Core spec builder + pipe API
-- [x] Point, line, bar, area, text, rule marks
-- [x] D3.js htmlwidget renderer
-- [x] Tooltips, zoom, brush, hover effects
-- [x] Theme token system with presets
-- [x] Layout composition (compose, marginals, inset)
-- [x] Entrance animations
-- [x] Vega-Lite JSON export
+## Inspecting and exporting
 
-### v0.2 (Next)
-- [ ] Statistical transforms (smooth, density, bin, aggregate)
-- [ ] Legend rendering and interactive legends
-- [ ] Canvas rendering backend for 10K–100K points
-- [ ] Full faceting implementation in the JS renderer
-- [ ] Keyboard accessibility
+Because the plot is data, you can look inside it before anything is drawn.
+`summary()` lists what a spec contains. `compile()` resolves the mappings and
+scales and returns the JSON that the renderer reads. `to_vegalite()` converts
+a spec to Vega-Lite JSON for use in the Vega Editor, Altair or JavaScript.
 
-### v0.3
-- [ ] WebGL backend via regl/deck.gl
-- [ ] Keyframe animation (morph between data states)
-- [ ] Cross-filter linked selections across composed plots
-- [ ] Network/graph mark type
-- [ ] Treemap and sunburst marks
+`export()` writes a plot to a file:
 
-### v1.0
-- [ ] Full Vega-Lite round-trip (import + export)
-- [ ] Shiny integration (server-side selections as reactive values)
-- [ ] Static PDF/SVG export via headless Chrome
-- [ ] Arrow/DuckDB data connectors for out-of-memory datasets
-- [ ] Comprehensive test suite + pkgdown documentation site
+```r
+export(p, "plot.html")  # interactive widget
+export(p, "plot.json")  # the compiled spec
+```
+
+A single self-contained HTML file needs pandoc, which RStudio includes.
+Without pandoc, `export()` writes the HTML with a `plot_files` folder next to
+it. Static SVG, PNG and PDF export are not implemented yet.
+
+## Rendering
+
+There is one renderer: an HTML widget drawn with D3.js and SVG.
+`compile(engine = ...)` accepts `"auto"` or `"html"` and rejects anything
+else. The spec does not depend on the renderer, so other backends can be
+added later without changing how plots are written. See
+[ARCHITECTURE.md](ARCHITECTURE.md) for how the pieces fit together.
+
+## Status
+
+glyph is at version 0.1. It has point, line, bar, area, text, rule, ribbon
+and link marks. It supports tooltips, hover, click, zoom, brushing and
+crossfilter; entrance and keyframe animation; `compose()`, `facet()`,
+`marginals()` and `inset()`; theme tokens and presets; and JSON and
+Vega-Lite export.
+
+Not done yet:
+
+- Statistical transforms (smooth, density, bin, aggregate)
+- Statistical marks such as boxplot, violin, histogram and sina
+  ([#6](https://github.com/josh45-source/glyph/issues/6)), and a polygon mark
+  ([#7](https://github.com/josh45-source/glyph/issues/7))
+- A plan for medium and large datasets
+  ([#8](https://github.com/josh45-source/glyph/issues/8))
+- A legend drawn by default for colour scales. Today a legend appears only
+  when you add one with `selection("legend", type = "legend")`.
+- Keyboard accessibility
+- Network, treemap and sunburst marks
+- Shiny integration, with selections available as reactive values
+- Static SVG, PNG and PDF export
+- Importing Vega-Lite specs
+- Arrow and DuckDB data sources for data that doesn't fit in memory
 
 ## Contributing
 
-This is a prototype exploring whether a better visualization grammar for R
-is feasible. Contributions, feedback, and design discussions are welcome.
+glyph is early, and feedback on the design is as useful as code. Bug reports,
+questions and ideas are welcome in the
+[issue tracker](https://github.com/josh45-source/glyph/issues).
 
 ## Acknowledgements
 

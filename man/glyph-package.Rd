@@ -3,9 +3,9 @@
 \docType{package}
 \name{glyph-package}
 \alias{glyph-package}
-\title{glyph: A Next-Generation Grammar of Interactive Graphics}
+\title{glyph: A Grammar of Interactive Graphics}
 \description{
-A modern visualization grammar that treats interactivity, animation, and composable layouts as first-class concepts rather than afterthoughts. Designed to address key limitations of existing grammars: native hover, click, and zoom events, built-in multi-plot composition, and a token-based theming system. Renders interactive HTML widgets via 'D3.js' from a single declarative specification.
+Builds interactive graphics from a declarative specification. Marks, scales, tooltips, hover and click events, zoom, brushing, linked selections, animated transitions and multi-plot layouts are declared in one pipeline and stored as a plain R list that can be inspected, saved as 'JSON' or converted to 'Vega-Lite'. Themes are set from a small set of design tokens. Plots are drawn in the browser as 'htmlwidgets' using 'D3.js'.
 }
 \section{Acknowledgements}{
 

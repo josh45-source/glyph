@@ -1,105 +1,74 @@
 # glyph
 
-### The grammar of graphics, rebuilt for a web that moves.
+\
+[`install.packages`](https://rdrr.io/r/utils/install.packages.html)`(``"glyph"``)`\
+\
+`# Development version`\
+`# remotes::install_github("josh45-source/glyph")`
 
-**glyph** is a next-generation grammar of interactive graphics for R. It
-treats interactivity, animation, and composable layouts as first-class
-concepts — not afterthoughts bolted on via a chain of extension
-packages.
-
-``` r
-
-install.packages("glyph")
-```
+## A first plot
 
 \
-
-## ggplot2 vs glyph
-
-Same plot. One needs `plotly`, `ggrepel`, and a paragraph of
-[`theme()`](https://ggplot2.tidyverse.org/reference/theme.html) calls to
-get interactive, styled, and readable. The other needs a pipe.
-
-[TABLE]
-
-No [`aes()`](https://ggplot2.tidyverse.org/reference/aes.html). No
-[`factor()`](https://rdrr.io/r/base/factor.html) coercion. No `+`
-juggling geometry, scales, and theme in one flat expression. And you get
-zoom, brush, and hover for free.
-
+[`library`](https://rdrr.io/r/base/library.html)`(`[`glyph`](https://github.com/josh45-source/glyph)`)`\
 \
+[`glyph`](https://josh45-source.github.io/glyph/reference/glyph.md)`(``mtcars``, x ``=`` ``wt``, y ``=`` ``mpg``)`` ``|>`\
+`  `[`mark_point`](https://josh45-source.github.io/glyph/reference/mark_point.md)`(``color ``=`` ``cyl``, size ``=`` ``hp``)`` ``|>`\
+`  `[`interact`](https://josh45-source.github.io/glyph/reference/interact.md)`(``tooltip ``=`` ``"{cyl} cyl, {mpg} mpg at {wt} tons"``, zoom ``=`` ``TRUE``)`` ``|>`\
+`  `[`scale`](https://josh45-source.github.io/glyph/reference/scale.md)`(``"y"``, zero ``=`` ``TRUE``, label ``=`` ``"Miles per gallon"``)`` ``|>`\
+`  `[`theme_tokens`](https://josh45-source.github.io/glyph/reference/theme_tokens.md)`(``preset ``=`` ``"dark"``)`` ``|>`\
+`  `[`titles`](https://josh45-source.github.io/glyph/reference/titles.md)`(``title ``=`` ``"Motor Trend Cars"``, subtitle ``=`` ``"Weight vs fuel efficiency"``)`
 
-## Why glyph?
+Each step adds to a specification, a plain R list that describes the
+whole plot. When the plot is printed, glyph compiles the spec to JSON
+and draws it in the browser with D3.js. In an interactive session that
+happens on its own; call
+[`render()`](https://josh45-source.github.io/glyph/reference/render.md)
+when you want to set the width and height, or when the code runs in R
+Markdown or a vignette.
 
-**Interactivity is grammar, not glue.** Tooltips, zoom, brushing, and
-linked views are declared right in the pipeline with
+## What goes in the spec
+
+Marks are the layers that draw data: points, lines, bars, areas, text,
+rules, ribbons and links. Each is a `mark_*()` function, and mappings
+are bare column names or expressions such as `factor(cyl)`.
+
 [`interact()`](https://josh45-source.github.io/glyph/reference/interact.md)
-and
+adds tooltips, hover effects, zoom, brushing and click handling.
 [`selection()`](https://josh45-source.github.io/glyph/reference/selection.md)
-— not stapled on afterward with `plotly::ggplotly()`.
+defines named selections, including a clickable legend.
 
-**The spec is the plot.** Every glyph visualization is a pure,
-inspectable data structure. Serialize it to JSON, export it to Vega-Lite
-with
-[`to_vegalite()`](https://josh45-source.github.io/glyph/reference/to_vegalite.md),
-or
-[`compile()`](https://josh45-source.github.io/glyph/reference/compile.md)
-it to an interactive HTML widget — without touching the code that built
-it.
-
-**Composition is built in.** Multi-plot layouts, marginal distributions,
-inset plots, and linked brushing across panels ship in
-[`compose()`](https://josh45-source.github.io/glyph/reference/compose.md),
-[`marginals()`](https://josh45-source.github.io/glyph/reference/marginals.md),
-and
-[`inset()`](https://josh45-source.github.io/glyph/reference/inset.md) —
-no `patchwork`, no `ggExtra`.
-
-**Tokens, not 90 theme arguments.**
-[`theme_tokens()`](https://josh45-source.github.io/glyph/reference/theme_tokens.md)
-takes a handful of design tokens — font, background, grid — and cascades
-foreground, grid, and title colors automatically for contrast.
-
-**Animation is a pipeline step.**
 [`animate()`](https://josh45-source.github.io/glyph/reference/animate.md)
-declares transitions, stagger, and easing right where the plot is built,
-with no separate `gganimate` render pass.
+controls how marks enter, and with `by =` it steps through groups of the
+data.
 
-\
+[`compose()`](https://josh45-source.github.io/glyph/reference/compose.md)
+puts several plots in one widget and can link their selections.
+[`facet()`](https://josh45-source.github.io/glyph/reference/facet.md),
+[`marginals()`](https://josh45-source.github.io/glyph/reference/marginals.md)
+and
+[`inset()`](https://josh45-source.github.io/glyph/reference/inset.md)
+add small multiples, marginal distributions and inset plots.
 
-## Installation
+[`theme_tokens()`](https://josh45-source.github.io/glyph/reference/theme_tokens.md)
+sets the look from a few tokens such as font, background and accent.
+Text and grid colours are derived from the background so they stay
+readable.
 
-``` r
+[`to_vegalite()`](https://josh45-source.github.io/glyph/reference/to_vegalite.md)
+converts a spec to Vega-Lite JSON, and
+[`export()`](https://josh45-source.github.io/glyph/reference/export.md)
+writes a plot to an HTML or JSON file.
 
-install.packages("glyph")
+## Learn more
 
-# Development version
-# remotes::install_github("josh45-source/glyph")
-```
-
-\
-
-## Getting Started
-
-``` r
-
-library(glyph)
-
-glyph(mtcars, x = wt, y = mpg) |>
-  mark_point(color = cyl, size = hp) |>
-  interact(tooltip = "{cyl} cyl, {mpg} mpg at {wt} tons", zoom = TRUE) |>
-  scale("y", zero = TRUE, label = "Miles per gallon") |>
-  theme_tokens(preset = "dark") |>
-  titles(title = "Motor Trend Cars", subtitle = "Weight vs fuel efficiency")
-```
-
-Read the [Getting Started
+The [Getting Started
 guide](https://josh45-source.github.io/glyph/articles/getting-started.md)
-for live, interactive examples, the [side-by-side
-comparison](https://josh45-source.github.io/glyph/articles/comparison.md)
-against ggplot2, or browse the [function
-reference](https://josh45-source.github.io/glyph/reference/index.md) to
-see everything glyph can do.
+runs through each feature with live plots you can hover, zoom and brush.
+The [function
+reference](https://josh45-source.github.io/glyph/reference/index.md)
+lists everything glyph exports, and
+[ARCHITECTURE.md](https://josh45-source.github.io/glyph/ARCHITECTURE.md)
+explains how the spec, the compiler and the renderer fit together.
 
 # Package index
 
@@ -217,5 +186,3 @@ Compile the spec and render or export it.
 
 - [Getting Started with
   glyph](https://josh45-source.github.io/glyph/articles/getting-started.md):
-- [glyph vs ggplot2: Side-by-Side
-  Comparison](https://josh45-source.github.io/glyph/articles/comparison.md):

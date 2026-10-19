@@ -17,9 +17,9 @@ export(spec, file, width = 800, height = 600)
 - file:
 
   Output file path. Extension determines format. Currently implemented:
-  `.html` (self-contained interactive widget) and `.json` (the compiled
-  spec). Other extensions (`.svg`, `.png`, `.pdf`) are planned but not
-  yet implemented, and currently just print a message.
+  `.html` (interactive widget) and `.json` (the compiled spec). Other
+  extensions (`.svg`, `.png`, `.pdf`) are planned but not yet
+  implemented, and currently just print a message.
 
 - width:
 
@@ -32,3 +32,12 @@ export(spec, file, width = 800, height = 600)
 ## Value
 
 Invisibly returns the output file path
+
+## Details
+
+A single self-contained `.html` file needs [pandoc](https://pandoc.org).
+RStudio ships with pandoc, so this works out of the box there;
+elsewhere, install pandoc and make sure it is on your `PATH`. Without
+pandoc, `export()` still writes the `.html` file but puts the JavaScript
+it needs in a `<name>_files` folder next to it, and tells you so. Keep
+the two together when moving or sharing the plot.

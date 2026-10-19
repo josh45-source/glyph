@@ -1,201 +1,163 @@
 # Getting Started with glyph
 
-``` r
+\
+[`library`](https://rdrr.io/r/base/library.html)`(`[`glyph`](https://github.com/josh45-source/glyph)`)`\
+`#> `\
+`#> Attaching package: 'glyph'`\
+`#> The following object is masked from 'package:base':`\
+`#> `\
+`#>     scale`
 
-library(glyph)
-#> 
-#> Attaching package: 'glyph'
-#> The following object is masked from 'package:base':
-#> 
-#>     scale
-```
+Every plot on this page is built by the code above it and drawn by
+glyph’s D3 renderer. They are live, so you can hover, click, brush and
+zoom them. All the examples use `mtcars`, which means you can paste them
+into R and get the same result.
 
-This vignette walks through glyph’s grammar with live, interactive
-output. Every plot below is a real `glyph_spec` built with the package
-and rendered to an actual D3-backed htmlwidget — not a screenshot.
-Hover, click, brush, and zoom them right here in the page.
+At the console, a plot draws itself when printed. A vignette runs its
+code non-interactively, and there printing a plot only gives a one-line
+summary. So each example here ends with
+[`render()`](https://josh45-source.github.io/glyph/reference/render.html),
+which builds the widget directly. In your own session you can leave it
+off unless you want to set the width and height.
 
-One thing worth knowing up front: printing a `glyph_spec` at the console
-auto-renders it (like a ggplot2 plot), but that auto-render only fires
-in an interactive R session. Inside a vignette or pkgdown article the
-code runs non-interactively, so each example below ends the pipeline
-with an explicit
-[`render()`](https://josh45-source.github.io/glyph/reference/render.html)
-call to produce the widget.
+## 1. Tooltips and hover
 
-All examples use `mtcars` so you can copy-paste and run them yourself.
-
-## 1. Tooltips and hover, declared in the pipeline
-
-Interactivity is grammar, not glue.
 [`interact()`](https://josh45-source.github.io/glyph/reference/interact.html)
-turns on tooltips and a hover effect right where the plot is built, and
+adds behaviour to the plot. Here it turns on tooltips and makes a point
+grow when the mouse is over it.
 [`titles()`](https://josh45-source.github.io/glyph/reference/titles.html)
-adds a title in the same pipe — no `ggplotly()` conversion step, no lost
-formatting.
+adds a title in the same pipeline.
 
-``` r
+\
+[`glyph`](https://josh45-source.github.io/glyph/reference/glyph.md)`(``mtcars``, x ``=`` ``wt``, y ``=`` ``mpg``)`` ``|>`\
+`  `[`mark_point`](https://josh45-source.github.io/glyph/reference/mark_point.md)`(``color ``=`` ``cyl``)`` ``|>`\
+`  `[`interact`](https://josh45-source.github.io/glyph/reference/interact.md)`(``tooltip ``=`` ``TRUE``, hover ``=`` ``"enlarge"``)`` ``|>`\
+`  `[`titles`](https://josh45-source.github.io/glyph/reference/titles.md)`(``title ``=`` ``"Motor Trend Cars"``)`` ``|>`\
+`  `[`render`](https://josh45-source.github.io/glyph/reference/render.md)`(``)`
 
-glyph(mtcars, x = wt, y = mpg) |>
-  mark_point(color = cyl) |>
-  interact(tooltip = TRUE, hover = "enlarge") |>
-  titles(title = "Motor Trend Cars") |>
-  render()
-```
+Move the mouse over a point to enlarge it, and rest on it to see the
+tooltip.
 
-Hover over a point to see it enlarge; pause on it to see the tooltip.
-
-## 2. Animated bar chart
+## 2. Animated bars
 
 [`animate()`](https://josh45-source.github.io/glyph/reference/animate.html)
-declares a transition as part of the spec. `stagger` offsets each bar’s
-entrance animation so they draw in sequence rather than all at once.
+describes how marks enter the plot. With `stagger`, each bar starts a
+little after the one before, so they draw in sequence.
 
-``` r
+\
+[`glyph`](https://josh45-source.github.io/glyph/reference/glyph.md)`(``mtcars``, x ``=`` ``cyl``, y ``=`` ``mpg``)`` ``|>`\
+`  `[`mark_bar`](https://josh45-source.github.io/glyph/reference/mark_bar.md)`(``)`` ``|>`\
+`  `[`animate`](https://josh45-source.github.io/glyph/reference/animate.md)`(``transition ``=`` ``"slide"``, stagger ``=`` ``50``)`` ``|>`\
+`  `[`render`](https://josh45-source.github.io/glyph/reference/render.md)`(``)`
 
-glyph(mtcars, x = cyl, y = mpg) |>
-  mark_bar() |>
-  animate(transition = "slide", stagger = 50) |>
-  render()
-```
+Reload the page, or run the chunk again in R, to watch the bars slide
+in.
 
-Reload this page (or re-run the chunk in an R session) to see the bars
-slide in.
+## 3. A dark theme
 
-## 3. Token-based dark theme
-
-Instead of ggplot2’s dozens of individual
-[`theme()`](https://ggplot2.tidyverse.org/reference/theme.html)
-arguments,
 [`theme_tokens()`](https://josh45-source.github.io/glyph/reference/theme_tokens.html)
-takes a small preset (or individual tokens like `bg`, `font`, `accent`)
-and cascades foreground, grid, and title colors automatically for
-contrast.
+sets the look of a plot from a few values. This example uses the
+`"dark"` preset. You can also set single tokens such as `bg`, `font` or
+`accent`. Text, grid and title colours are worked out from the
+background so they stay readable.
 
-``` r
+\
+[`glyph`](https://josh45-source.github.io/glyph/reference/glyph.md)`(``mtcars``, x ``=`` ``wt``, y ``=`` ``mpg``)`` ``|>`\
+`  `[`mark_point`](https://josh45-source.github.io/glyph/reference/mark_point.md)`(``color ``=`` ``cyl``)`` ``|>`\
+`  `[`interact`](https://josh45-source.github.io/glyph/reference/interact.md)`(``tooltip ``=`` ``TRUE``)`` ``|>`\
+`  `[`theme_tokens`](https://josh45-source.github.io/glyph/reference/theme_tokens.md)`(``preset ``=`` ``"dark"``)`` ``|>`\
+`  `[`titles`](https://josh45-source.github.io/glyph/reference/titles.md)`(``title ``=`` ``"Dark Theme Example"``)`` ``|>`\
+`  `[`render`](https://josh45-source.github.io/glyph/reference/render.md)`(``)`
 
-glyph(mtcars, x = wt, y = mpg) |>
-  mark_point(color = cyl) |>
-  interact(tooltip = TRUE) |>
-  theme_tokens(preset = "dark") |>
-  titles(title = "Dark Theme Example") |>
-  render()
-```
-
-## 4. Point labels with automatic collision avoidance
+## 4. Labels that avoid each other
 
 [`mark_text()`](https://josh45-source.github.io/glyph/reference/mark_text.html)
-draws a label per point, and `smart_repel = TRUE` nudges overlapping
-labels apart so they stay readable — a first-class feature instead of a
-separate `ggrepel` dependency. `mtcars` stores car names as row names,
-so we promote them to a real column first.
+draws one label per row. With `smart_repel = TRUE`, labels that overlap
+are nudged apart. `mtcars` keeps the car names in its row names, so the
+first line copies them into a column.
 
-``` r
+\
+`mtcars_named`` ``<-`` `[`data.frame`](https://rdrr.io/r/base/data.frame.html)`(``model ``=`` `[`rownames`](https://rdrr.io/r/base/colnames.html)`(``mtcars``)``, ``mtcars``, row.names ``=`` ``NULL``)`\
+\
+[`glyph`](https://josh45-source.github.io/glyph/reference/glyph.md)`(``mtcars_named``, x ``=`` ``wt``, y ``=`` ``mpg``)`` ``|>`\
+`  `[`mark_point`](https://josh45-source.github.io/glyph/reference/mark_point.md)`(``color ``=`` ``cyl``)`` ``|>`\
+`  `[`mark_text`](https://josh45-source.github.io/glyph/reference/mark_text.md)`(``label ``=`` ``model``, smart_repel ``=`` ``TRUE``)`` ``|>`\
+`  `[`render`](https://josh45-source.github.io/glyph/reference/render.md)`(``)`
 
-mtcars_named <- data.frame(model = rownames(mtcars), mtcars, row.names = NULL)
-
-glyph(mtcars_named, x = wt, y = mpg) |>
-  mark_point(color = cyl) |>
-  mark_text(label = model, smart_repel = TRUE) |>
-  render()
-```
-
-## 5. Linked panels with crossfilter brushing
+## 5. Linked panels
 
 [`compose()`](https://josh45-source.github.io/glyph/reference/compose.html)
-arranges multiple `glyph_spec` objects into a single layout — here, two
-scatterplots side by side — without reaching for `patchwork` or
-`cowplot`. With `interact(brush = TRUE)` on each panel and
-`linked_selections = TRUE` on the composed layout, brushing points in
-one panel highlights the *same rows* in the other.
+places several plots in one widget. Both panels below allow brushing,
+and `linked_selections = TRUE` connects them. Rows you select in one
+panel are highlighted in the other.
 
-``` r
+\
+`p1`` ``<-`` `[`glyph`](https://josh45-source.github.io/glyph/reference/glyph.md)`(``mtcars``, x ``=`` ``wt``, y ``=`` ``mpg``)`` ``|>`\
+`  `[`mark_point`](https://josh45-source.github.io/glyph/reference/mark_point.md)`(``color ``=`` ``cyl``)`` ``|>`\
+`  `[`interact`](https://josh45-source.github.io/glyph/reference/interact.md)`(``brush ``=`` ``TRUE``)`\
+\
+`p2`` ``<-`` `[`glyph`](https://josh45-source.github.io/glyph/reference/glyph.md)`(``mtcars``, x ``=`` ``hp``, y ``=`` ``mpg``)`` ``|>`\
+`  `[`mark_point`](https://josh45-source.github.io/glyph/reference/mark_point.md)`(``color ``=`` ``cyl``)`` ``|>`\
+`  `[`interact`](https://josh45-source.github.io/glyph/reference/interact.md)`(``brush ``=`` ``TRUE``)`\
+\
+[`compose`](https://josh45-source.github.io/glyph/reference/compose.md)`(``p1``, ``p2``, type ``=`` ``"hstack"``, linked_selections ``=`` ``TRUE``)`` ``|>`\
+`  `[`render`](https://josh45-source.github.io/glyph/reference/render.md)`(``)`
 
-p1 <- glyph(mtcars, x = wt, y = mpg) |>
-  mark_point(color = cyl) |>
-  interact(brush = TRUE)
+Drag a rectangle over a few points in either panel. The same cars light
+up in both.
 
-p2 <- glyph(mtcars, x = hp, y = mpg) |>
-  mark_point(color = cyl) |>
-  interact(brush = TRUE)
-
-compose(p1, p2, type = "hstack", linked_selections = TRUE) |>
-  render()
-```
-
-Drag a rectangle over a few points in either panel — the corresponding
-cars highlight in both.
-
-## 6. Faceting
+## 6. Small multiples
 
 [`facet()`](https://josh45-source.github.io/glyph/reference/facet.html)
-splits a plot into small multiples by one or two variables, each with
-its own panel — like ggplot2’s
-[`facet_wrap()`](https://ggplot2.tidyverse.org/reference/facet_wrap.html),
-built into the same pipeline instead of a separate layer.
+splits a plot into one panel per value of a variable. You can facet by
+rows, by columns or by both.
 
-``` r
-
-glyph(mtcars, x = wt, y = mpg) |>
-  mark_point(color = cyl) |>
-  facet(cols = cyl) |>
-  render()
-```
+\
+[`glyph`](https://josh45-source.github.io/glyph/reference/glyph.md)`(``mtcars``, x ``=`` ``wt``, y ``=`` ``mpg``)`` ``|>`\
+`  `[`mark_point`](https://josh45-source.github.io/glyph/reference/mark_point.md)`(``color ``=`` ``cyl``)`` ``|>`\
+`  `[`facet`](https://josh45-source.github.io/glyph/reference/facet.md)`(``cols ``=`` ``cyl``)`` ``|>`\
+`  `[`render`](https://josh45-source.github.io/glyph/reference/render.md)`(``)`
 
 ## 7. Marginal distributions
 
 [`marginals()`](https://josh45-source.github.io/glyph/reference/marginals.html)
-adds histograms, density curves, or boxplots along the axes — a common
-pattern that normally needs `ggExtra` or manual grid manipulation in
-ggplot2.
+draws the distribution of each axis along its edge. The choices are
+`"histogram"`, `"density"` and `"boxplot"`.
 
-``` r
-
-glyph(mtcars, x = wt, y = mpg) |>
-  mark_point(color = cyl) |>
-  marginals(x = "histogram", y = "density") |>
-  render()
-```
+\
+[`glyph`](https://josh45-source.github.io/glyph/reference/glyph.md)`(``mtcars``, x ``=`` ``wt``, y ``=`` ``mpg``)`` ``|>`\
+`  `[`mark_point`](https://josh45-source.github.io/glyph/reference/mark_point.md)`(``color ``=`` ``cyl``)`` ``|>`\
+`  `[`marginals`](https://josh45-source.github.io/glyph/reference/marginals.md)`(``x ``=`` ``"histogram"``, y ``=`` ``"density"``)`` ``|>`\
+`  `[`render`](https://josh45-source.github.io/glyph/reference/render.md)`(``)`
 
 ## 8. Inset plots
 
 [`inset()`](https://josh45-source.github.io/glyph/reference/inset.html)
-places a second, smaller glyph_spec inside a corner of the main plot —
-useful for a detail view or a different breakdown of the same data,
-without any manual viewport math.
+puts a smaller plot inside a corner of the main one. It works well for a
+detail view or a second breakdown of the same data.
 
-``` r
+\
+`main_plot`` ``<-`` `[`glyph`](https://josh45-source.github.io/glyph/reference/glyph.md)`(``mtcars``, x ``=`` ``wt``, y ``=`` ``mpg``)`` ``|>`` `[`mark_point`](https://josh45-source.github.io/glyph/reference/mark_point.md)`(``color ``=`` ``cyl``)`\
+`detail_plot`` ``<-`` `[`glyph`](https://josh45-source.github.io/glyph/reference/glyph.md)`(``mtcars``, x ``=`` ``cyl``, y ``=`` ``mpg``)`` ``|>`` `[`mark_bar`](https://josh45-source.github.io/glyph/reference/mark_bar.md)`(``)`\
+\
+[`inset`](https://josh45-source.github.io/glyph/reference/inset.md)`(``main_plot``, ``detail_plot``, position ``=`` ``"top-right"``)`` ``|>`\
+`  `[`render`](https://josh45-source.github.io/glyph/reference/render.md)`(``)`
 
-main_plot <- glyph(mtcars, x = wt, y = mpg) |> mark_point(color = cyl)
-detail_plot <- glyph(mtcars, x = cyl, y = mpg) |> mark_bar()
+## 9. Moving between groups
 
-inset(main_plot, detail_plot, position = "top-right") |>
-  render()
-```
+`animate(by = ..., transition = "morph")` shows one group of the data at
+a time. When the group changes, each mark moves to its new position.
 
-## 9. Keyframe (“morph”) animation
+\
+[`glyph`](https://josh45-source.github.io/glyph/reference/glyph.md)`(``mtcars``, x ``=`` ``wt``, y ``=`` ``mpg``)`` ``|>`\
+`  `[`mark_point`](https://josh45-source.github.io/glyph/reference/mark_point.md)`(``size ``=`` ``hp``, color ``=`` ``cyl``)`` ``|>`\
+`  `[`animate`](https://josh45-source.github.io/glyph/reference/animate.md)`(``by ``=`` ``gear``, transition ``=`` ``"morph"``, duration ``=`` ``800``)`` ``|>`\
+`  `[`render`](https://josh45-source.github.io/glyph/reference/render.md)`(``)`
 
-`animate(by = ..., transition = "morph")` cycles the plot through
-subsets of the data grouped by a field, transitioning marks smoothly
-between states — similar in spirit to `gganimate::transition_states()`,
-but with a built-in play/pause control and no rendering-to-GIF step.
-
-``` r
-
-glyph(mtcars, x = wt, y = mpg) |>
-  mark_point(size = hp, color = cyl) |>
-  animate(by = gear, transition = "morph", duration = 800) |>
-  render()
-```
-
-Use the play/pause button to step through each `gear` group.
+Use the play/pause button to step through the `gear` groups.
 
 ## Where to next
 
-- Browse the [function
-  reference](https://josh45-source.github.io/glyph/reference/index.html)
-  for every mark, scale, and layout primitive glyph provides.
-- Read [glyph vs ggplot2: Side-by-Side
-  Comparison](https://josh45-source.github.io/glyph/articles/comparison.md)
-  for a broader tour of how the two grammars differ, including more live
-  examples.
+The [function
+reference](https://josh45-source.github.io/glyph/reference/index.html)
+covers every mark, scale and layout function in more detail.

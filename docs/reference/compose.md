@@ -65,17 +65,17 @@ p3 <- glyph(mtcars, x = hp, y = mpg) |> mark_line()
 # Horizontal stack
 compose(p1, p2, type = "hstack")
 #> 
-#> ── Glyph Layout ────────────────────────────────────────────────────────────────
-#> • Type: hstack
-#> • Panels: 2
-#> • Linked selections: FALSE
+#> -- Glyph Layout ----------------------------------------------------------------
+#> * Type: hstack
+#> * Panels: 2
+#> * Linked selections: FALSE
 
 # Grid with linked brushing
 compose(p1, p2, p3, type = "wrap",
         linked_selections = TRUE, shared_scales = "x")
 #> 
-#> ── Glyph Layout ────────────────────────────────────────────────────────────────
-#> • Type: wrap
-#> • Panels: 3
-#> • Linked selections: TRUE
+#> -- Glyph Layout ----------------------------------------------------------------
+#> * Type: wrap
+#> * Panels: 3
+#> * Linked selections: TRUE
 ```
