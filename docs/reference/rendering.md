@@ -13,10 +13,9 @@ merge defaults), then serialized to JSON, then handed to a backend:
 
 ## Details
 
-Key architectural difference from ggplot2: the spec is a pure data
-structure. The
+A glyph spec is a plain data structure, and nothing is drawn until the
 [`compile()`](https://josh45-source.github.io/glyph/reference/compile.md)
-step resolves it into a concrete render tree. This means you can:
+step resolves it into a concrete render tree. That means you can:
 
 - Inspect the compiled spec as JSON (for debugging or export)
 

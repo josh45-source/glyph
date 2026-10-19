@@ -1,15 +1,15 @@
 #' @title Visual Marks
 #' @name marks
-#' @description Marks are the visual encodings in glyph — analogous to ggplot2's
-#'   geoms but with key differences:
+#' @description Marks are the layers that draw data: points, lines, bars,
+#'   areas, text, rules, ribbons and links. Each `mark_*()` call adds one
+#'   layer to the spec.
 #'
-#'   1. **Mappings without aes()**: pass bare column names directly.
-#'   2. **Per-mark data**: each mark can have its own data source, enabling
-#'      multi-dataset plots without awkward data parameter overrides.
-#'   3. **Built-in interaction hints**: marks carry interaction metadata
-#'      (what happens on hover, click, drag) as part of the spec.
-#'   4. **Transition-aware**: marks know how to interpolate between states
-#'      for animation.
+#'   Mappings are passed as bare column names or expressions, and are added
+#'   to the global mappings set in [glyph()]. A mark can also take its own
+#'   `data`, so one plot can draw from several data frames. Fixed visual
+#'   properties that don't depend on the data, such as `size`, `opacity` or
+#'   `stroke_width`, go in `style`. Interaction and animation are set for the whole plot with
+#'   [interact()] and [animate()].
 NULL
 
 #' Add a point mark (scatterplot)
@@ -63,11 +63,10 @@ mark_area <- function(spec, ..., data = NULL, style = list()) {
 #' @inheritParams mark_point
 #' @param smart_repel Automatically avoid label overlaps (TRUE by default).
 #'   Inspired by \pkg{ggrepel}, but simpler: rather than a full force-directed
-#'   simulation, glyph resolves overlaps by iterative pairwise nudging —
-#'   repeatedly comparing every pair of label bounding boxes and, for any
-#'   pair that still overlaps, pushing them a small step apart vertically
-#'   (up to 50 passes, stopping as soon as none overlap). This is a
-#'   first-class feature, not an extension package.
+#'   simulation, glyph resolves overlaps by iterative pairwise nudging. It
+#'   repeatedly compares every pair of label bounding boxes and, for any
+#'   pair that still overlaps, pushes them a small step apart vertically
+#'   (up to 50 passes, stopping as soon as none overlap).
 #' @return Modified \code{glyph_spec} object with the text mark added
 #' @export
 mark_text <- function(spec, ..., data = NULL, style = list(),

@@ -17,9 +17,9 @@ large-data export backends. Planned, not yet implemented.
 }
 }
 \details{
-Key architectural difference from ggplot2: the spec is a pure data
-structure. The \code{compile()} step resolves it into a concrete render tree.
-This means you can:
+A glyph spec is a plain data structure, and nothing is drawn until the
+\code{compile()} step resolves it into a concrete render tree. That means you
+can:
 \itemize{
 \item Inspect the compiled spec as JSON (for debugging or export)
 \item Serialize it and render on a different machine

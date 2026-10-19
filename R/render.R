@@ -12,9 +12,9 @@
 #'     large-data export backends. Planned, not yet implemented.
 #'
 #' @details
-#' Key architectural difference from ggplot2: the spec is a pure data
-#' structure. The `compile()` step resolves it into a concrete render tree.
-#' This means you can:
+#' A glyph spec is a plain data structure, and nothing is drawn until the
+#' `compile()` step resolves it into a concrete render tree. That means you
+#' can:
 #' - Inspect the compiled spec as JSON (for debugging or export)
 #' - Serialize it and render on a different machine
 #' - Export it to Vega-Lite JSON (near 1:1 mapping)
@@ -435,7 +435,13 @@ render <- function(spec, width = NULL, height = NULL) {
   )
 }
 
-#' Auto-render when printed (like ggplot2)
+#' Draw a glyph spec when it is printed
+#'
+#' @description In an interactive session, printing a spec renders it as an
+#'   htmlwidget, so a plot appears without calling [render()]. In a
+#'   non-interactive session, including R Markdown, Quarto and vignettes,
+#'   it prints a one-line summary instead; end the pipeline with [render()]
+#'   there.
 #' @param x A glyph_spec object
 #' @param ... Additional arguments (ignored)
 #' @return Invisibly returns the glyph_spec object

@@ -18,8 +18,9 @@ NULL
 #' @param transition Transition type: "morph", "fade", "slide", "none"
 #' @param duration Duration in milliseconds
 #' @param stagger Delay between successive marks in ms (for entrance effects)
-#' @param by Column that defines animation keyframes (like gganimate's
-#'   transition_states). e.g. by = year plays through years.
+#' @param by Column that defines animation keyframes. The plot shows one
+#'   value of it at a time and moves between them, e.g. `by = year` plays
+#'   through the years.
 #' @param easing Easing function: "linear", "ease-in", "ease-out",
 #'   "ease-in-out", "bounce", "elastic"
 #' @param loop Repeat animation (TRUE, FALSE, or number of times)

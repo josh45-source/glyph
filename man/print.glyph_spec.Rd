@@ -2,7 +2,7 @@
 % Please edit documentation in R/render.R
 \name{print.glyph_spec}
 \alias{print.glyph_spec}
-\title{Auto-render when printed (like ggplot2)}
+\title{Draw a glyph spec when it is printed}
 \usage{
 \method{print}{glyph_spec}(x, ...)
 }
@@ -15,5 +15,9 @@
 Invisibly returns the glyph_spec object
 }
 \description{
-Auto-render when printed (like ggplot2)
+In an interactive session, printing a spec renders it as an
+htmlwidget, so a plot appears without calling \code{\link[=render]{render()}}. In a
+non-interactive session, including R Markdown, Quarto and vignettes,
+it prints a one-line summary instead; end the pipeline with \code{\link[=render]{render()}}
+there.
 }

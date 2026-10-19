@@ -1,13 +1,14 @@
 #' @title Create a Glyph Visualization
 #' @description Entry point for the glyph grammar. Creates a specification
-#'   object that describes a visualization declaratively. Unlike ggplot2,
-#'   the spec is a pure data structure (nested list) that can be serialized,
-#'   inspected, and compiled to multiple backends.
+#'   that describes a visualization declaratively. The spec is a plain nested
+#'   list: it can be inspected, serialized to JSON, and compiled into an
+#'   interactive HTML widget.
 #'
-#' @param data A data.frame or tibble. Unlike ggplot2, glyph also accepts
-#'   lists-of-lists, URLs to CSV/JSON, or arrow tables (planned).
-#' @param ... Global aesthetic mappings using bare column names (no aes() needed).
-#'   e.g. glyph(mtcars, x = wt, y = mpg)
+#' @param data A data frame or tibble, or `NULL` if each mark will supply its
+#'   own data.
+#' @param ... Global aesthetic mappings, written as bare column names or
+#'   expressions, e.g. `glyph(mtcars, x = wt, y = mpg)`. Every mark uses these
+#'   unless it sets its own.
 #' @return A `glyph_spec` object
 #' @export
 #'

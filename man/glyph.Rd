@@ -7,20 +7,21 @@
 glyph(data = NULL, ...)
 }
 \arguments{
-\item{data}{A data.frame or tibble. Unlike ggplot2, glyph also accepts
-lists-of-lists, URLs to CSV/JSON, or arrow tables (planned).}
+\item{data}{A data frame or tibble, or \code{NULL} if each mark will supply its
+own data.}
 
-\item{...}{Global aesthetic mappings using bare column names (no aes() needed).
-e.g. glyph(mtcars, x = wt, y = mpg)}
+\item{...}{Global aesthetic mappings, written as bare column names or
+expressions, e.g. \code{glyph(mtcars, x = wt, y = mpg)}. Every mark uses these
+unless it sets its own.}
 }
 \value{
 A \code{glyph_spec} object
 }
 \description{
 Entry point for the glyph grammar. Creates a specification
-object that describes a visualization declaratively. Unlike ggplot2,
-the spec is a pure data structure (nested list) that can be serialized,
-inspected, and compiled to multiple backends.
+that describes a visualization declaratively. The spec is a plain nested
+list: it can be inspected, serialized to JSON, and compiled into an
+interactive HTML widget.
 }
 \examples{
 spec <- glyph(mtcars, x = wt, y = mpg) |>

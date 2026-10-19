@@ -4,15 +4,14 @@
 \alias{marks}
 \title{Visual Marks}
 \description{
-Marks are the visual encodings in glyph — analogous to ggplot2's
-geoms but with key differences:
-\enumerate{
-\item \strong{Mappings without aes()}: pass bare column names directly.
-\item \strong{Per-mark data}: each mark can have its own data source, enabling
-multi-dataset plots without awkward data parameter overrides.
-\item \strong{Built-in interaction hints}: marks carry interaction metadata
-(what happens on hover, click, drag) as part of the spec.
-\item \strong{Transition-aware}: marks know how to interpolate between states
-for animation.
-}
+Marks are the layers that draw data: points, lines, bars,
+areas, text, rules, ribbons and links. Each \verb{mark_*()} call adds one
+layer to the spec.
+
+Mappings are passed as bare column names or expressions, and are added
+to the global mappings set in \code{\link[=glyph]{glyph()}}. A mark can also take its own
+\code{data}, so one plot can draw from several data frames. Fixed visual
+properties that don't depend on the data, such as \code{size}, \code{opacity} or
+\code{stroke_width}, go in \code{style}. Interaction and animation are set for the whole plot with
+\code{\link[=interact]{interact()}} and \code{\link[=animate]{animate()}}.
 }
