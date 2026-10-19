@@ -32,8 +32,10 @@ and a D3 renderer draws it in the browser as an htmlwidget.
 ## Drawing a plot
 
 Plots print automatically. Type the name of a plot at the console, or leave
-it as the last value of a pipeline, and it is drawn in the viewer. You only
-need `render()` when you want to set the width and height yourself:
+it as the last value of a pipeline, and it is drawn in the viewer. In R
+Markdown, Quarto and vignettes it is drawn in the document. Layouts built
+with `compose()` work the same way. You only need `render()` when you want
+to set the width and height yourself:
 
 ```r
 p <- glyph(mtcars, x = wt, y = mpg) |> mark_point()
@@ -42,10 +44,7 @@ p                                    # drawn at the default size
 render(p, width = 600, height = 400) # drawn at 600 x 400
 ```
 
-There are two cases where you do need `render()`. Layouts built with
-`compose()` print a short text summary. And in R Markdown, Quarto and
-vignettes the code runs non-interactively, so printing a plot there gives a
-one-line description. End the pipeline with `render()` in both cases.
+For a text description of a plot or a layout, use `summary()`.
 
 ## Interaction
 
@@ -99,8 +98,7 @@ p2 <- glyph(mtcars, x = hp, y = mpg) |>
   mark_point(color = cyl) |>
   interact(brush = TRUE)
 
-compose(p1, p2, type = "hstack", linked_selections = TRUE) |>
-  render()
+compose(p1, p2, type = "hstack", linked_selections = TRUE)
 ```
 
 `facet()` splits one plot into small multiples. `marginals()` adds a

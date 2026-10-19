@@ -86,6 +86,7 @@ reference:
   - layout
   - compose
   - print.glyph_layout
+  - summary.glyph_layout
   - marginals
   - inset
   - facet

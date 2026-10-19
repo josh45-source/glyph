@@ -2,8 +2,11 @@
 
 S3method(compile,glyph_layout)
 S3method(compile,glyph_spec)
+S3method(knitr::knit_print,glyph_layout)
+S3method(knitr::knit_print,glyph_spec)
 S3method(print,glyph_layout)
 S3method(print,glyph_spec)
+S3method(summary,glyph_layout)
 S3method(summary,glyph_spec)
 export(animate)
 export(compile)

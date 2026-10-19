@@ -2,22 +2,31 @@
 % Please edit documentation in R/render.R
 \name{print.glyph_spec}
 \alias{print.glyph_spec}
+\alias{knit_print.glyph_spec}
 \title{Draw a glyph spec when it is printed}
 \usage{
 \method{print}{glyph_spec}(x, ...)
+
+\method{knit_print}{glyph_spec}(x, ..., options = NULL)
 }
 \arguments{
 \item{x}{A glyph_spec object}
 
-\item{...}{Additional arguments (ignored)}
+\item{...}{Passed on to knitr when knitting; otherwise ignored.}
+
+\item{options}{knitr chunk options, supplied by knitr.}
 }
 \value{
-Invisibly returns the glyph_spec object
+\code{print()} invisibly returns \code{x}. \code{knit_print()} returns the
+rendered widget's HTML for knitr to include in the document.
 }
 \description{
-In an interactive session, printing a spec renders it as an
-htmlwidget, so a plot appears without calling \code{\link[=render]{render()}}. In a
-non-interactive session, including R Markdown, Quarto and vignettes,
-it prints a one-line summary instead; end the pipeline with \code{\link[=render]{render()}}
-there.
+A printed spec draws itself. At the console it opens in the
+viewer, and in R Markdown, Quarto and vignettes it is embedded in the
+document. Call \code{\link[=render]{render()}} only to set the width and height, and use
+\link[=summary.glyph_spec]{summary()} for a text description.
+
+In a non-interactive session that isn't knitting a document, such as
+\code{Rscript}, there is nowhere to draw, so printing gives a one-line
+description instead.
 }

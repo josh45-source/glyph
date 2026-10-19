@@ -7,6 +7,7 @@ Build and inspect the visualization spec.
 - [`glyph()`](https://josh45-source.github.io/glyph/reference/glyph.md)
   : Create a Glyph Visualization
 - [`print(`*`<glyph_spec>`*`)`](https://josh45-source.github.io/glyph/reference/print.glyph_spec.md)
+  [`knit_print(`*`<glyph_spec>`*`)`](https://josh45-source.github.io/glyph/reference/print.glyph_spec.md)
   : Draw a glyph spec when it is printed
 - [`summary(`*`<glyph_spec>`*`)`](https://josh45-source.github.io/glyph/reference/summary.glyph_spec.md)
   : Summarize a glyph specification
@@ -85,7 +86,10 @@ Multi-plot composition and auxiliary panels.
 - [`compose()`](https://josh45-source.github.io/glyph/reference/compose.md)
   : Compose multiple glyph specs into a layout
 - [`print(`*`<glyph_layout>`*`)`](https://josh45-source.github.io/glyph/reference/print.glyph_layout.md)
-  : Print a glyph layout
+  [`knit_print(`*`<glyph_layout>`*`)`](https://josh45-source.github.io/glyph/reference/print.glyph_layout.md)
+  : Draw a glyph layout when it is printed
+- [`summary(`*`<glyph_layout>`*`)`](https://josh45-source.github.io/glyph/reference/summary.glyph_layout.md)
+  : Summarize a glyph layout
 - [`marginals()`](https://josh45-source.github.io/glyph/reference/marginals.md)
   : Add a marginal plot (histogram/density on axes)
 - [`inset()`](https://josh45-source.github.io/glyph/reference/inset.md)
