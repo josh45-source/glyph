@@ -2,7 +2,9 @@
 #' @name marks
 #' @description Marks are the layers that draw data: points, lines, bars,
 #'   areas, text, rules, ribbons and links. Each `mark_*()` call adds one
-#'   layer to the spec.
+#'   layer to the spec. [mark_boxplot()], [mark_violin()], [mark_sina()] and
+#'   [mark_histogram()] summarise the distribution of a variable; their
+#'   statistics are computed from the data when the plot is compiled.
 #'
 #'   Mappings are passed as bare column names or expressions, and are added
 #'   to the global mappings set in [glyph()]. A mark can also take its own
@@ -108,10 +110,193 @@ mark_link <- function(spec, ..., data = NULL, style = list()) {
            defaults = list(stroke_width = 1, opacity = 0.5))
 }
 
+# ---- Statistical marks -------------------------------------------------------
+
+#' Add a boxplot mark
+#'
+#' @description Draws one box per group: the box spans the first to third
+#'   quartile, the line inside it is the median, and the whiskers reach the
+#'   most extreme values within `coef` times the interquartile range of the
+#'   box. Values beyond the whiskers are drawn as outlier points.
+#'
+#'   Map `y` to the numeric variable and `x` to the grouping variable, which
+#'   is treated as categorical even when it is numeric. Without `x`, all rows
+#'   form one box. Mapping `color` to a different variable than `x` places
+#'   one box per colour side by side within each x group.
+#'
+#'   The statistics are computed in R when the plot is compiled, using
+#'   [stats::quantile()] with its default `type = 7`. Rows with a missing `x`
+#'   or `y` are dropped first, with a warning.
+#' @inheritParams mark_point
+#' @param ... Aesthetic mappings: `y` (required, numeric), `x` and `color`.
+#' @param coef Length of the whiskers as a multiple of the interquartile
+#'   range. Use `Inf` to extend them to the minimum and maximum.
+#' @param outliers Whether to draw values beyond the whiskers as points.
+#' @param width Width of each box as a fraction of the space for its group,
+#'   between 0 and 1.
+#' @return Modified \code{glyph_spec} object with the boxplot mark added
+#' @export
+#'
+#' @examples
+#' glyph(mtcars, x = factor(cyl), y = mpg) |>
+#'   mark_boxplot()
+mark_boxplot <- function(spec, ..., data = NULL, style = list(),
+                         coef = 1.5, outliers = TRUE, width = 0.7) {
+  check_number(coef, "coef", min = 0)
+  check_flag(outliers, "outliers")
+  check_number(width, "width", min = 0, max = 1, allow_min = FALSE)
+  add_mark(spec, "boxplot", rlang::enquos(...), data, style,
+           defaults = list(opacity = 0.7, stroke_width = 1),
+           stat = list(type = "boxplot", coef = coef, outliers = outliers,
+                       width = width))
+}
+
+#' Add a violin mark
+#'
+#' @description Draws the distribution of a numeric variable for each group
+#'   as a mirrored kernel density curve, trimmed to the range of the group's
+#'   values. All violins in the mark use the same density scale, so their
+#'   widths can be compared directly.
+#'
+#'   Map `y` to the numeric variable and `x` to the grouping variable, which
+#'   is treated as categorical even when it is numeric. Without `x`, all rows
+#'   form one violin. Mapping `color` to a different variable than `x` places
+#'   one violin per colour side by side within each x group.
+#'
+#'   The densities are computed in R when the plot is compiled, with
+#'   [stats::density()]. A group needs at least two distinct values; groups
+#'   with fewer are left out with a warning.
+#' @inheritParams mark_point
+#' @param ... Aesthetic mappings: `y` (required, numeric), `x` and `color`.
+#' @param bw Smoothing bandwidth, passed to [stats::density()]: a number or
+#'   the name of a bandwidth rule such as `"nrd0"` (the default) or `"SJ"`.
+#' @param adjust Multiplier for the bandwidth. Values above 1 give smoother
+#'   curves.
+#' @param width Width of the widest violin as a fraction of the space for
+#'   its group, between 0 and 1.
+#' @return Modified \code{glyph_spec} object with the violin mark added
+#' @export
+#'
+#' @examples
+#' glyph(mtcars, x = factor(cyl), y = mpg) |>
+#'   mark_violin()
+mark_violin <- function(spec, ..., data = NULL, style = list(),
+                        bw = "nrd0", adjust = 1, width = 0.9) {
+  check_bandwidth(bw)
+  check_number(adjust, "adjust", min = 0, allow_min = FALSE)
+  check_number(width, "width", min = 0, max = 1, allow_min = FALSE)
+  add_mark(spec, "violin", rlang::enquos(...), data, style,
+           defaults = list(opacity = 0.6, stroke_width = 1),
+           stat = list(type = "violin", bw = bw, adjust = adjust, width = width))
+}
+
+#' Add a sina mark
+#'
+#' @description Draws every row as a point, spread sideways within its group
+#'   in proportion to the density of values at that height. The points fill
+#'   the same outline a [mark_violin()] with the same settings would draw, so
+#'   the two combine well.
+#'
+#'   Each point is still a row of the data, so tooltips, brushing and linked
+#'   selections work on individual rows, as they do for [mark_point()]. The
+#'   sideways positions are computed in R when the plot is compiled and are
+#'   the same every time.
+#' @inheritParams mark_violin
+#' @param ... Aesthetic mappings: `y` (required, numeric), `x`, `color` and
+#'   `size`.
+#' @param width Width of the spread at the highest density, as a fraction of
+#'   the space for its group, between 0 and 1.
+#' @return Modified \code{glyph_spec} object with the sina mark added
+#' @export
+#'
+#' @examples
+#' glyph(mtcars, x = factor(cyl), y = mpg) |>
+#'   mark_violin() |>
+#'   mark_sina()
+mark_sina <- function(spec, ..., data = NULL, style = list(),
+                      bw = "nrd0", adjust = 1, width = 0.9) {
+  check_bandwidth(bw)
+  check_number(adjust, "adjust", min = 0, allow_min = FALSE)
+  check_number(width, "width", min = 0, max = 1, allow_min = FALSE)
+  add_mark(spec, "sina", rlang::enquos(...), data, style,
+           defaults = list(size = 3, opacity = 0.8),
+           stat = list(type = "sina", bw = bw, adjust = adjust, width = width))
+}
+
+#' Add a histogram mark
+#'
+#' @description Counts how many rows fall into each bin of a numeric `x`
+#'   variable and draws one bar per bin. Bins are closed on the right, like
+#'   [graphics::hist()], and the lowest bin also includes its left edge.
+#'   Mapping `color` stacks one bar segment per colour within each bin.
+#'
+#'   With neither `bins` nor `binwidth`, the number of bins follows Sturges'
+#'   rule and the edges are rounded to tidy values, as in
+#'   [graphics::hist()]. All facet panels share the same bins.
+#'
+#'   The counts are computed in R when the plot is compiled. Rows with a
+#'   missing `x` are dropped first, with a warning.
+#' @inheritParams mark_point
+#' @param ... Aesthetic mappings: `x` (required, numeric) and `color`. There
+#'   is no `y` mapping; the bar heights are the counts.
+#' @param bins Number of equal-width bins spanning the range of `x`.
+#' @param binwidth Width of each bin. Bin edges are multiples of `binwidth`.
+#'   Takes precedence over `bins`.
+#' @return Modified \code{glyph_spec} object with the histogram mark added
+#' @export
+#'
+#' @examples
+#' glyph(mtcars, x = mpg) |>
+#'   mark_histogram(binwidth = 2.5)
+mark_histogram <- function(spec, ..., data = NULL, style = list(),
+                           bins = NULL, binwidth = NULL) {
+  if (!is.null(bins)) {
+    check_number(bins, "bins", min = 1)
+    if (bins != round(bins)) cli::cli_abort("{.arg bins} must be a whole number.")
+  }
+  if (!is.null(binwidth)) check_number(binwidth, "binwidth", min = 0, allow_min = FALSE)
+  add_mark(spec, "histogram", rlang::enquos(...), data, style,
+           defaults = list(opacity = 0.85),
+           stat = list(type = "histogram", bins = bins, binwidth = binwidth))
+}
+
+# Argument checks for the statistical marks.
+check_number <- function(x, arg, min = -Inf, max = Inf, allow_min = TRUE) {
+  ok <- is.numeric(x) && length(x) == 1 && !is.na(x) &&
+    x <= max && (if (allow_min) x >= min else x > min)
+  if (!ok) {
+    bound <- if (allow_min) ">=" else ">"
+    range_txt <- if (is.finite(max)) {
+      sprintf("between %s and %s", min, max)
+    } else {
+      sprintf("%s %s", bound, min)
+    }
+    cli::cli_abort("{.arg {arg}} must be a single number {range_txt}.")
+  }
+  invisible(x)
+}
+
+check_flag <- function(x, arg) {
+  if (!is.logical(x) || length(x) != 1 || is.na(x)) {
+    cli::cli_abort("{.arg {arg}} must be {.code TRUE} or {.code FALSE}.")
+  }
+  invisible(x)
+}
+
+check_bandwidth <- function(bw) {
+  ok <- (is.character(bw) && length(bw) == 1) ||
+    (is.numeric(bw) && length(bw) == 1 && !is.na(bw) && bw > 0)
+  if (!ok) {
+    cli::cli_abort("{.arg bw} must be a positive number or the name of a bandwidth rule.")
+  }
+  invisible(bw)
+}
+
 # ---- Internal mark builder ---------------------------------------------------
 
 #' @noRd
-add_mark <- function(spec, type, quos, data, style, defaults = list()) {
+add_mark <- function(spec, type, quos, data, style, defaults = list(),
+                     stat = NULL) {
   stopifnot(inherits(spec, "glyph_spec"))
 
   mappings <- capture_mappings(quos)
@@ -121,7 +306,8 @@ add_mark <- function(spec, type, quos, data, style, defaults = list()) {
     mappings = mappings,
     data     = if (!is.null(data)) validate_data(data) else NULL,
     style    = utils::modifyList(defaults, style),
-    id       = paste0(type, "_", length(spec$marks) + 1)
+    id       = paste0(type, "_", length(spec$marks) + 1),
+    stat     = stat
   )
 
   spec$marks <- c(spec$marks, list(mark))

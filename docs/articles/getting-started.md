@@ -140,6 +140,58 @@ a time. When the group changes, each mark moves to its new position.
 
 Use the play/pause button to step through the `gear` groups.
 
+## 10. Boxplots
+
+[`mark_boxplot()`](https://josh45-source.github.io/glyph/reference/mark_boxplot.html)
+summarises a numeric variable for each group. The box runs from the
+first to the third quartile and the line across it is the median. Values
+beyond the whiskers are drawn as separate points.
+
+\
+[`glyph`](https://josh45-source.github.io/glyph/reference/glyph.md)`(``mtcars``, x ``=`` `[`factor`](https://rdrr.io/r/base/factor.html)`(``cyl``)``, y ``=`` ``mpg``)`` ``|>`\
+`  `[`mark_boxplot`](https://josh45-source.github.io/glyph/reference/mark_boxplot.md)`(``)`` ``|>`\
+`  `[`interact`](https://josh45-source.github.io/glyph/reference/interact.md)`(``tooltip ``=`` ``TRUE``, hover ``=`` ``"outline"``)`
+
+Rest the pointer on a box to read its quartiles.
+
+## 11. Violins
+
+[`mark_violin()`](https://josh45-source.github.io/glyph/reference/mark_violin.html)
+draws each group’s distribution as a mirrored density curve. Every
+violin uses the same density scale, so a wide section means many cars
+with similar values.
+
+\
+[`glyph`](https://josh45-source.github.io/glyph/reference/glyph.md)`(``mtcars``, x ``=`` `[`factor`](https://rdrr.io/r/base/factor.html)`(``gear``)``, y ``=`` ``mpg``)`` ``|>`\
+`  `[`mark_violin`](https://josh45-source.github.io/glyph/reference/mark_violin.md)`(``color ``=`` `[`factor`](https://rdrr.io/r/base/factor.html)`(``gear``)``)`` ``|>`\
+`  `[`interact`](https://josh45-source.github.io/glyph/reference/interact.md)`(``tooltip ``=`` ``TRUE``)`
+
+## 12. Sina points
+
+[`mark_sina()`](https://josh45-source.github.io/glyph/reference/mark_sina.html)
+draws one point per row and spreads the points sideways by how common
+their value is. They fill the same outline a violin would, but each
+point is still a car, so you can brush across them.
+
+\
+[`glyph`](https://josh45-source.github.io/glyph/reference/glyph.md)`(``mtcars``, x ``=`` `[`factor`](https://rdrr.io/r/base/factor.html)`(``cyl``)``, y ``=`` ``mpg``)`` ``|>`\
+`  `[`mark_violin`](https://josh45-source.github.io/glyph/reference/mark_violin.md)`(``style ``=`` `[`list`](https://rdrr.io/r/base/list.html)`(``opacity ``=`` ``0.2``)``)`` ``|>`\
+`  `[`mark_sina`](https://josh45-source.github.io/glyph/reference/mark_sina.md)`(``)`` ``|>`\
+`  `[`interact`](https://josh45-source.github.io/glyph/reference/interact.md)`(``tooltip ``=`` ``TRUE``, brush ``=`` ``TRUE``)`
+
+Drag across a group to select the cars in it.
+
+## 13. Histograms
+
+[`mark_histogram()`](https://josh45-source.github.io/glyph/reference/mark_histogram.html)
+counts the rows that fall in each bin of a numeric variable. Mapping
+colour stacks the counts for each group within a bin.
+
+\
+[`glyph`](https://josh45-source.github.io/glyph/reference/glyph.md)`(``mtcars``, x ``=`` ``mpg``)`` ``|>`\
+`  `[`mark_histogram`](https://josh45-source.github.io/glyph/reference/mark_histogram.md)`(``binwidth ``=`` ``2.5``, color ``=`` `[`factor`](https://rdrr.io/r/base/factor.html)`(``am``)``)`` ``|>`\
+`  `[`interact`](https://josh45-source.github.io/glyph/reference/interact.md)`(``tooltip ``=`` ``TRUE``)`
+
 ## Where to next
 
 The [function

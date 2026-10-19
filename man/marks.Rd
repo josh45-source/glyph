@@ -6,7 +6,9 @@
 \description{
 Marks are the layers that draw data: points, lines, bars,
 areas, text, rules, ribbons and links. Each \verb{mark_*()} call adds one
-layer to the spec.
+layer to the spec. \code{\link[=mark_boxplot]{mark_boxplot()}}, \code{\link[=mark_violin]{mark_violin()}}, \code{\link[=mark_sina]{mark_sina()}} and
+\code{\link[=mark_histogram]{mark_histogram()}} summarise the distribution of a variable; their
+statistics are computed from the data when the plot is compiled.
 
 Mappings are passed as bare column names or expressions, and are added
 to the global mappings set in \code{\link[=glyph]{glyph()}}. A mark can also take its own
