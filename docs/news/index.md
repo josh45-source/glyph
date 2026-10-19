@@ -2,6 +2,17 @@
 
 ## glyph (development version)
 
+- Plots now fit inside their container in both directions
+  ([\#17](https://github.com/josh45-source/glyph/issues/17)). A plot was
+  drawn at the spec’s width and height (600 x 400 unless set) and scaled
+  to the container’s width, so in a wide, short container such as
+  RStudio’s Viewer pane it came out taller than the space available and
+  its x axis was cut off. The same happened to
+  [`facet()`](https://josh45-source.github.io/glyph/reference/facet.md)
+  grids, which also overflowed narrow containers, and plots in R
+  Markdown documents ran past their 400px box into the text below. Plots
+  and facet grids are now drawn at the size of the container they are
+  in, and are redrawn when it is resized.
 - New statistical marks
   ([\#6](https://github.com/josh45-source/glyph/issues/6)):
   [`mark_boxplot()`](https://josh45-source.github.io/glyph/reference/mark_boxplot.md),
