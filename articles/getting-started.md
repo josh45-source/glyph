@@ -220,6 +220,27 @@ glyph(mtcars, x = mpg) |>
   interact(tooltip = TRUE)
 ```
 
+## 14. Polygons
+
+[`mark_polygon()`](https://josh45-source.github.io/glyph/reference/mark_polygon.html)
+draws closed shapes from x/y vertices, one shape per value of `group`.
+Here each shape is the convex hull of a cylinder group, found with
+[`chull()`](https://rdrr.io/r/grDevices/chull.html), and drawn under the
+cars it encloses.
+
+``` r
+
+hulls <- do.call(rbind, lapply(split(mtcars, mtcars$cyl), function(d) {
+  d[chull(d$wt, d$mpg), ]
+}))
+
+glyph(mtcars, x = wt, y = mpg) |>
+  mark_polygon(data = hulls, group = factor(cyl), color = factor(cyl),
+               style = list(opacity = 0.2)) |>
+  mark_point(color = factor(cyl)) |>
+  interact(tooltip = TRUE)
+```
+
 ## Where to next
 
 The [function

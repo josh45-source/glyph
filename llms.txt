@@ -32,8 +32,8 @@ only when you want to set the width and height.
 ## What goes in the spec
 
 Marks are the layers that draw data: points, lines, bars, areas, text,
-rules, ribbons and links, plus boxplots, violins, sina points and
-histograms, which summarise a variable’s distribution. Each is a
+rules, ribbons, links and polygons, plus boxplots, violins, sina points
+and histograms, which summarise a variable’s distribution. Each is a
 `mark_*()` function, and mappings are bare column names or expressions
 such as `factor(cyl)`.
 
@@ -111,6 +111,8 @@ Geometric layers that draw data onto the plot.
   : Add a ribbon/band mark (for confidence intervals, ranges)
 - [`mark_link()`](https://josh45-source.github.io/glyph/reference/mark_link.md)
   : Add a link/edge mark (for networks, sankeys, slope graphs)
+- [`mark_polygon()`](https://josh45-source.github.io/glyph/reference/mark_polygon.md)
+  : Add a polygon mark
 
 ## Statistical marks
 
