@@ -36,8 +36,9 @@ animate(
 
 - by:
 
-  Column that defines animation keyframes (like gganimate's
-  transition_states). e.g. by = year plays through years.
+  Column that defines animation keyframes. The plot shows one value of
+  it at a time and moves between them, e.g. `by = year` plays through
+  the years.
 
 - easing:
 

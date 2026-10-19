@@ -1,9 +1,9 @@
-#' @title First-Class Interactivity
+#' @title Interactivity
 #' @name interactivity
-#' @description Unlike ggplot2 where interactivity is bolted on via ggplotly(),
-#'   glyph treats interaction as part of the visualization grammar. Interactions
-#'   are declared in the spec and compiled to the appropriate backend
-#'   (D3 events for HTML, Shiny bindings for server-side).
+#' @description Tooltips, hover effects, clicks, zoom, brushing and linked
+#'   selections are part of the plot specification. They are declared with
+#'   [interact()] and [selection()] in the same pipeline as the marks, stored
+#'   in the spec, and run in the browser by the D3 renderer.
 #'
 #' @details
 #' Design philosophy: interactions are *selections* that filter or highlight

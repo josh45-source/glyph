@@ -1,7 +1,7 @@
 # Add a marginal plot (histogram/density on axes)
 
-Adds marginal distributions to a plot's axes — a common pattern that
-requires ggExtra or manual grid manipulation in ggplot2.
+Draws the distribution of the x and y variables along the edges of the
+plot, as a histogram, density curve or boxplot.
 
 ## Usage
 

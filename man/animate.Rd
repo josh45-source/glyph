@@ -23,8 +23,9 @@ animate(
 
 \item{stagger}{Delay between successive marks in ms (for entrance effects)}
 
-\item{by}{Column that defines animation keyframes (like gganimate's
-transition_states). e.g. by = year plays through years.}
+\item{by}{Column that defines animation keyframes. The plot shows one
+value of it at a time and moves between them, e.g. \code{by = year} plays
+through the years.}
 
 \item{easing}{Easing function: "linear", "ease-in", "ease-out",
 "ease-in-out", "bounce", "elastic"}

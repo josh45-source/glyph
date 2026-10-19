@@ -32,9 +32,11 @@ Modified \code{glyph_spec} object
 Modified \code{glyph_spec} object
 }
 \description{
-Scales map data values to visual properties. Glyph simplifies
-ggplot2's \verb{scale_<aesthetic>_<type>} explosion into a composable system:
-\verb{scale(<aesthetic>, <type>, ...)}.
+Scales map data values to visual properties. Every scale is
+set with one function, \verb{scale(<aesthetic>, <type>, ...)}, where the
+aesthetic is the channel (such as \code{"x"} or \code{"color"}) and the type is
+how values are mapped (such as \code{"log"} or \code{"time"}). \code{\link[=scale_color]{scale_color()}},
+\code{\link[=scale_log]{scale_log()}} and \code{\link[=scale_time]{scale_time()}} are shortcuts for common cases.
 }
 \section{Functions}{
 \itemize{

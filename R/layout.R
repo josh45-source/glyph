@@ -69,8 +69,8 @@ compose <- function(...,
 
 #' Add a marginal plot (histogram/density on axes)
 #'
-#' @description Adds marginal distributions to a plot's axes — a common
-#'   pattern that requires ggExtra or manual grid manipulation in ggplot2.
+#' @description Draws the distribution of the x and y variables along the
+#'   edges of the plot, as a histogram, density curve or boxplot.
 #'
 #' @param spec A glyph_spec
 #' @param x Marginal type for x-axis: "histogram", "density", "boxplot", NULL
@@ -121,9 +121,10 @@ inset <- function(spec, inset, position = "top-right") {
 
 #' Facet a plot by one or two variables
 #'
-#' @description Like ggplot2's facet_wrap/facet_grid but with a key improvement:
-#'   each facet can have independent geom parameters and scales by default
-#'   (instead of forced uniformity).
+#' @description Splits a plot into small multiples, one panel for each value of
+#'   `rows`, `cols`, or both. Panels share their axes unless `free_scales`
+#'   lets them vary. With a single faceting variable, `wrap` sets how many
+#'   panels go in each row.
 #'
 #' @param spec A glyph_spec
 #' @param rows Row faceting variable: a bare column name, a computed

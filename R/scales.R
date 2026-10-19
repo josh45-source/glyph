@@ -1,8 +1,10 @@
 #' @title Scales
 #' @name scales
-#' @description Scales map data values to visual properties. Glyph simplifies
-#'   ggplot2's `scale_<aesthetic>_<type>` explosion into a composable system:
-#'   `scale(<aesthetic>, <type>, ...)`.
+#' @description Scales map data values to visual properties. Every scale is
+#'   set with one function, `scale(<aesthetic>, <type>, ...)`, where the
+#'   aesthetic is the channel (such as `"x"` or `"color"`) and the type is
+#'   how values are mapped (such as `"log"` or `"time"`). [scale_color()],
+#'   [scale_log()] and [scale_time()] are shortcuts for common cases.
 NULL
 
 #' Define a scale for an aesthetic channel

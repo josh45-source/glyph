@@ -23,7 +23,8 @@ expression, or \code{NULL}}
 Modified glyph_spec
 }
 \description{
-Like ggplot2's facet_wrap/facet_grid but with a key improvement:
-each facet can have independent geom parameters and scales by default
-(instead of forced uniformity).
+Splits a plot into small multiples, one panel for each value of
+\code{rows}, \code{cols}, or both. Panels share their axes unless \code{free_scales}
+lets them vary. With a single faceting variable, \code{wrap} sets how many
+panels go in each row.
 }

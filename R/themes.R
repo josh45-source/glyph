@@ -1,9 +1,8 @@
 #' @title Token-Based Theming
 #' @name theming
-#' @description Instead of ggplot2's 90+ theme() arguments, glyph uses a
-#'   design-token system. A small set of semantic tokens (font, colors,
-#'   spacing, sizes) cascade through the entire visualization. Think of it
-#'   like CSS custom properties for plots.
+#' @description A theme is set with design tokens: a small set of named
+#'   values (font, colours, spacing, sizes) that cascade through the whole
+#'   plot, much like CSS custom properties.
 #'
 #' @details
 #' Tokens cascade: setting `bg` changes the background, but also automatically

@@ -1,4 +1,4 @@
-# glyph <img src="man/figures/logo.png" align="right" height="139" />
+# glyph
 
 <!-- TODO(joash): write the intro in your own words -->
 

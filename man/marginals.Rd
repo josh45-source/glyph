@@ -19,8 +19,8 @@ marginals(spec, x = "histogram", y = "histogram", size = 0.15)
 Modified glyph_spec
 }
 \description{
-Adds marginal distributions to a plot's axes — a common
-pattern that requires ggExtra or manual grid manipulation in ggplot2.
+Draws the distribution of the x and y variables along the
+edges of the plot, as a histogram, density curve or boxplot.
 }
 \examples{
 glyph(mtcars, x = wt, y = mpg) |>
