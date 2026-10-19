@@ -1,8 +1,8 @@
 # Visual Marks
 
 Marks are the layers that draw data: points, lines, bars, areas, text,
-rules, ribbons and links. Each `mark_*()` call adds one layer to the
-spec.
+rules, ribbons, links and polygons. Each `mark_*()` call adds one layer
+to the spec.
 [`mark_boxplot()`](https://josh45-source.github.io/glyph/reference/mark_boxplot.md),
 [`mark_violin()`](https://josh45-source.github.io/glyph/reference/mark_violin.md),
 [`mark_sina()`](https://josh45-source.github.io/glyph/reference/mark_sina.md)

@@ -335,7 +335,10 @@ function markExtent(mark, data, axis) {
   const stat = mark.stat && mark.stat.type;
   const vals = [];
 
-  if (stat === "boxplot" && axis === "y") {
+  if (stat === "polygon" && (axis === "x" || axis === "y")) {
+    const key = axis === "x" ? ".x" : ".y";
+    data.forEach(d => (d[key] || []).forEach(v => vals.push(v)));
+  } else if (stat === "boxplot" && axis === "y") {
     data.forEach(d => {
       vals.push(d[".ymin"], d[".ymax"]);
       (d[".outliers"] || []).forEach(v => vals.push(v));
@@ -744,6 +747,9 @@ function drawMark(g, mark, data, scales, w, h, theme, spec, markRegistry) {
     case "histogram":
       drawHistogram(g, data, enc, scales, style, interact, theme, markRegistry);
       break;
+    case "polygon":
+      drawPolygon(g, data, enc, scales, style, interact, theme, markRegistry);
+      break;
   }
 }
 
@@ -1119,7 +1125,7 @@ function addStatHover(selection, targetSelector, theme) {
           fo: this.getAttribute("fill-opacity")
         };
         const el = d3.select(this);
-        if (saved.stroke === null) el.attr("stroke", theme.fg || "#333");
+        if (saved.stroke === null || saved.stroke === "none") el.attr("stroke", theme.fg || "#333");
         el.attr("stroke-width", +(saved.sw || 0) + 1.5);
         if (saved.fo !== null) el.attr("fill-opacity", Math.min(1, +saved.fo + 0.2));
       });
@@ -1137,10 +1143,11 @@ function addStatHover(selection, targetSelector, theme) {
     });
 }
 
-function addStatInteractions(selection, data, enc, interact, theme, markRegistry, baseOpacity, autoText, hoverTarget) {
+// `brush` defaults to testing each element's bounding box (see summaryBrush).
+function addStatInteractions(selection, data, enc, interact, theme, markRegistry, baseOpacity, autoText, hoverTarget, brush) {
   registerMark(markRegistry, selection, baseOpacity, {
     rowsOf: d => d[".rows"] || [],
-    brush: summaryBrush(selection)
+    brush: brush || summaryBrush(selection)
   });
   if (interact.tooltip?.enabled) addTooltip(selection, data, enc, interact.tooltip, theme, autoText);
   if (interact.hover?.enabled) addStatHover(selection, hoverTarget, theme);
@@ -1274,6 +1281,111 @@ function drawHistogram(g, data, enc, scales, style, interact, theme, markRegistr
   ].join("\n");
 
   addStatInteractions(bars, data, enc, interact, theme, markRegistry, baseOpacity, autoText, null);
+}
+
+// ---- Polygons -----------------------------------------------------------------
+//
+// The R side (stat_polygon() in R/stats.R) sends one record per polygon, with
+// its vertices in row order in `.x`/`.y` and the rows it draws in `.rows`.
+
+// SVG path through `pts` ([x, y] pixel pairs), closed back to the first point.
+// With a radius, each corner is replaced by a quadratic curve that starts and
+// ends `radius` pixels along its two edges (at most half of either edge), with
+// the vertex as its control point.
+function polygonPath(pts, radius) {
+  const n = pts.length;
+  if (n === 0) return "";
+  const fmt = p => `${p[0]},${p[1]}`;
+  if (!radius) return "M" + pts.map(fmt).join("L") + "Z";
+  let d = "";
+  for (let i = 0; i < n; i++) {
+    const v = pts[i], prev = pts[(i + n - 1) % n], next = pts[(i + 1) % n];
+    const lp = Math.hypot(prev[0] - v[0], prev[1] - v[1]);
+    const ln = Math.hypot(next[0] - v[0], next[1] - v[1]);
+    const r = Math.min(radius, lp / 2, ln / 2);
+    const a = lp ? [v[0] + (prev[0] - v[0]) * r / lp, v[1] + (prev[1] - v[1]) * r / lp] : v;
+    const b = ln ? [v[0] + (next[0] - v[0]) * r / ln, v[1] + (next[1] - v[1]) * r / ln] : v;
+    d += (i === 0 ? "M" : "L") + fmt(a) + "Q" + fmt(v) + " " + fmt(b);
+  }
+  return d + "Z";
+}
+
+// Even-odd ray casting: whether (x, y) is inside the polygon `pts`.
+function pointInPolygon(x, y, pts) {
+  let inside = false;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const [xi, yi] = pts[i], [xj, yj] = pts[j];
+    if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+function segmentsIntersect(p1, p2, p3, p4) {
+  const cross = (a, b, c) => (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+  const d1 = cross(p3, p4, p1), d2 = cross(p3, p4, p2);
+  const d3 = cross(p1, p2, p3), d4 = cross(p1, p2, p4);
+  return ((d1 > 0) !== (d2 > 0)) && ((d3 > 0) !== (d4 > 0));
+}
+
+// Whether the polygon `pts` overlaps the rectangle [[x0, y0], [x1, y1]]: a
+// vertex inside the rectangle, a rectangle corner inside the polygon, or an
+// edge crossing one of the rectangle's sides. Unlike a bounding-box test, a
+// brush in the notch of a concave polygon doesn't select it.
+function polygonIntersectsRect(pts, [[x0, y0], [x1, y1]]) {
+  if (pts.some(([x, y]) => x >= x0 && x <= x1 && y >= y0 && y <= y1)) return true;
+  const corners = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
+  if (corners.some(([x, y]) => pointInPolygon(x, y, pts))) return true;
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i], b = pts[(i + 1) % pts.length];
+    for (let k = 0; k < 4; k++) {
+      if (segmentsIntersect(a, b, corners[k], corners[(k + 1) % 4])) return true;
+    }
+  }
+  return false;
+}
+
+function drawPolygon(g, data, enc, scales, style, interact, theme, markRegistry) {
+  const fg = theme.fg || "#333";
+  const bandOffset = scales.x && scales.x.bandwidth ? scales.x.bandwidth() / 2 : 0;
+  const px = v => (scales.x ? scales.x(v) : 0) + bandOffset;
+  const py = v => scales.y ? scales.y(v) : 0;
+  const ptsOf = d => (d[".x"] || []).map((xv, i) => [px(xv), py(d[".y"][i])]);
+  const fill = d => (scales.color && enc.color?.field)
+    ? scales.color(getVal(d, enc.color))
+    : (style.fill || theme.accent || "#4269d0");
+  const strokeWidth = style.stroke_width ?? 1;
+
+  const shapes = g.append("g").attr("class", "marks-polygon")
+    .selectAll("path")
+    .data(data)
+    .join("path")
+    .attr("class", "glyph-polygon")
+    .attr("d", d => polygonPath(ptsOf(d), style.radius || 0))
+    .attr("fill", fill)
+    .attr("fill-opacity", style.opacity ?? 0.7)
+    .attr("stroke", strokeWidth > 0 ? (style.stroke || fg) : "none")
+    .attr("stroke-width", strokeWidth)
+    .attr("stroke-linejoin", "round")
+    .attr("opacity", 1);
+
+  // Brush and hover use the polygon's own shape, not its bounding box.
+  const brush = {
+    rowLevel: false,
+    nearest: (mx, my) => {
+      let found = null;
+      shapes.each(function(d) { if (pointInPolygon(mx, my, ptsOf(d))) found = this; });
+      return found;
+    },
+    hit: (d, i, node, rect) => polygonIntersectsRect(ptsOf(d), rect),
+    opacity: hit => hit ? 1 : 0.15
+  };
+
+  const autoText = d => [
+    ...groupLines(d, { x: enc.group, color: enc.color }),
+    `vertices: ${d[".n"]}`
+  ].join("\n");
+
+  addStatInteractions(shapes, data, enc, interact, theme, markRegistry, 1, autoText, null, brush);
 }
 
 // ---- Marginals ----------------------------------------------------------------

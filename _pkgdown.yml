@@ -60,6 +60,7 @@ reference:
   - mark_rule
   - mark_ribbon
   - mark_link
+  - mark_polygon
 
 - title: Statistical marks
   desc: Marks that summarise the distribution of a variable.

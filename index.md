@@ -31,7 +31,7 @@ when you want to set the width and height.
 ## What goes in the spec
 
 Marks are the layers that draw data: points, lines, bars, areas, text,
-rules, ribbons and links, plus boxplots, violins, sina points and
+rules, ribbons, links and polygons, plus boxplots, violins, sina points and
 histograms, which summarise a variable's distribution. Each is a
 `mark_*()` function, and mappings are bare column names or expressions such
 as `factor(cyl)`.

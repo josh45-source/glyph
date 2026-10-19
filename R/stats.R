@@ -13,6 +13,11 @@
 # the 0-based indices of the rows it summarises. The renderer uses `.rows` to
 # connect a summary element to row-level selections from brushing and
 # crossfilter. Sina marks keep one record per row and add the position offsets.
+#
+# mark_polygon() uses the same machinery without computing any statistic: its
+# rows are vertices, and they are collected into one record per polygon (see
+# stat_polygon() below) so that tooltips, brushing and crossfilter treat a
+# polygon as one element that draws many rows.
 
 #' Apply a mark's statistic to its resolved rows
 #' @param mark The mark as stored in the spec (`mark$stat` holds the type and
@@ -30,7 +35,8 @@ compute_stat <- function(mark, data, encoding, facet_fields = character()) {
     boxplot   = stat_boxplot(mark, data, encoding, facet_fields),
     violin    = stat_violin(mark, data, encoding, facet_fields),
     sina      = stat_sina(mark, data, encoding, facet_fields),
-    histogram = stat_histogram(mark, data, encoding, facet_fields)
+    histogram = stat_histogram(mark, data, encoding, facet_fields),
+    polygon   = stat_polygon(mark, data, encoding, facet_fields)
   )
 }
 
@@ -53,10 +59,13 @@ stat_values <- function(data, encoding, aes, mark) {
 }
 
 # Levels of a grouping column, in display order: factor levels that occur in
-# the data, otherwise the sorted unique values.
+# the data, otherwise the sorted unique values. A missing value is a group of
+# its own, placed last, so rows with a missing colour or group aren't
+# silently left out.
 group_levels <- function(x) {
-  if (is.factor(x)) return(levels(droplevels(x)))
-  sort(unique(x))
+  lev <- if (is.factor(x)) levels(droplevels(x)) else sort(unique(x))
+  if (anyNA(x)) lev <- c(lev, NA)
+  lev
 }
 
 # Makes sure a box/violin/sina mark has a discrete x to group on. Without an
@@ -102,8 +111,11 @@ dodge_positions <- function(data, encoding, width) {
 split_rows <- function(data, fields) {
   idx <- seq_len(nrow(data))
   if (length(fields) == 0 || nrow(data) == 0) return(list(idx))
+  # Group by each value's position in group_levels(), so a missing value
+  # (which factor() would drop) forms its own group.
   keys <- lapply(fields, function(f) {
-    factor(data[[f]], levels = group_levels(data[[f]]))
+    lev <- group_levels(data[[f]])
+    factor(match(data[[f]], lev), levels = seq_along(lev))
   })
   groups <- split(idx, keys, drop = TRUE, lex.order = TRUE)
   unname(groups[lengths(groups) > 0])
@@ -169,7 +181,8 @@ group_densities <- function(mark, data, y, fields) {
     cli::cli_warn(c(
       "!" = paste0(
         "{n_dropped} group{?s} in mark {.val {mark$id}} ",
-        "{?has/have} fewer than two distinct values, so no density can be drawn."
+        "{cli::qty(n_dropped)}{?has/have} fewer than two distinct values, ",
+        "so no density can be drawn."
       )
     ))
   }
@@ -318,4 +331,50 @@ histogram_breaks <- function(x, bins = NULL, binwidth = NULL) {
     return(seq(rng[1], rng[2], length.out = bins + 1))
   }
   pretty(rng, n = grDevices::nclass.Sturges(x), min.n = 1)
+}
+
+# ---- Polygons -----------------------------------------------------------------
+
+# One record per polygon: its vertices in row order (`.x`, `.y`), the rows it
+# draws (`.rows`), its grouping columns, and every other column that has a
+# single value within the polygon, so tooltip templates such as "{name}" can
+# use them. Rows are split into polygons by `group`, and by colour and facet
+# panel, since a polygon can only have one fill and be drawn in one panel.
+# Without a group mapping, all rows of a panel and colour form one polygon.
+# Polygons with fewer than three vertices enclose no area and are left out,
+# with a warning.
+stat_polygon <- function(mark, data, encoding, facet_fields) {
+  x <- stat_values(data, encoding, "x", mark)
+  y <- stat_values(data, encoding, "y", mark)
+  group_field <- encoding$group$field
+  fields <- unique(c(group_field, encoding$color$field, facet_fields))
+  skip <- c(encoding$x$field, encoding$y$field, fields)
+
+  groups <- if (nrow(data) == 0) list() else split_rows(data, fields)
+  too_small <- lengths(groups) < 3
+  n_small <- sum(too_small)
+  if (n_small > 0) {
+    cli::cli_warn(c(
+      "!" = paste0(
+        "{n_small} polygon{?s} in mark {.val {mark$id}} ",
+        "{cli::qty(n_small)}{?has/have} fewer than three vertices and ",
+        "{cli::qty(n_small)}{?was/were} left out."
+      )
+    ))
+  }
+
+  records <- lapply(groups[!too_small], function(rows) {
+    constant <- list()
+    for (f in setdiff(names(data), skip)) {
+      v <- data[[f]][rows]
+      if (length(unique(v)) == 1L) constant[[f]] <- v[1]
+    }
+    c(
+      group_columns(data, fields, rows),
+      constant,
+      list(.x = I(x[rows]), .y = I(y[rows]), .n = length(rows), .rows = I(rows - 1L))
+    )
+  })
+
+  list(records = records, encoding = encoding, stat = list(type = "polygon"))
 }

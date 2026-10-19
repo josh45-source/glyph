@@ -34,6 +34,8 @@ Geometric layers that draw data onto the plot.
   : Add a ribbon/band mark (for confidence intervals, ranges)
 - [`mark_link()`](https://josh45-source.github.io/glyph/reference/mark_link.md)
   : Add a link/edge mark (for networks, sankeys, slope graphs)
+- [`mark_polygon()`](https://josh45-source.github.io/glyph/reference/mark_polygon.md)
+  : Add a polygon mark
 
 ## Statistical marks
 

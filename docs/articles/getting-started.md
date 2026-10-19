@@ -192,6 +192,25 @@ colour stacks the counts for each group within a bin.
 `  `[`mark_histogram`](https://josh45-source.github.io/glyph/reference/mark_histogram.md)`(``binwidth ``=`` ``2.5``, color ``=`` `[`factor`](https://rdrr.io/r/base/factor.html)`(``am``)``)`` ``|>`\
 `  `[`interact`](https://josh45-source.github.io/glyph/reference/interact.md)`(``tooltip ``=`` ``TRUE``)`
 
+## 14. Polygons
+
+[`mark_polygon()`](https://josh45-source.github.io/glyph/reference/mark_polygon.html)
+draws closed shapes from x/y vertices, one shape per value of `group`.
+Here each shape is the convex hull of a cylinder group, found with
+[`chull()`](https://rdrr.io/r/grDevices/chull.html), and drawn under the
+cars it encloses.
+
+\
+`hulls`` ``<-`` `[`do.call`](https://rdrr.io/r/base/do.call.html)`(``rbind``, `[`lapply`](https://rdrr.io/r/base/lapply.html)`(`[`split`](https://rdrr.io/r/base/split.html)`(``mtcars``, ``mtcars``$``cyl``)``, ``function``(``d``)`` ``{`\
+`  ``d``[`[`chull`](https://rdrr.io/r/grDevices/chull.html)`(``d``$``wt``, ``d``$``mpg``)``, ``]`\
+`}``)``)`\
+\
+[`glyph`](https://josh45-source.github.io/glyph/reference/glyph.md)`(``mtcars``, x ``=`` ``wt``, y ``=`` ``mpg``)`` ``|>`\
+`  `[`mark_polygon`](https://josh45-source.github.io/glyph/reference/mark_polygon.md)`(``data ``=`` ``hulls``, group ``=`` `[`factor`](https://rdrr.io/r/base/factor.html)`(``cyl``)``, color ``=`` `[`factor`](https://rdrr.io/r/base/factor.html)`(``cyl``)``,`\
+`               style ``=`` `[`list`](https://rdrr.io/r/base/list.html)`(``opacity ``=`` ``0.2``)``)`` ``|>`\
+`  `[`mark_point`](https://josh45-source.github.io/glyph/reference/mark_point.md)`(``color ``=`` `[`factor`](https://rdrr.io/r/base/factor.html)`(``cyl``)``)`` ``|>`\
+`  `[`interact`](https://josh45-source.github.io/glyph/reference/interact.md)`(``tooltip ``=`` ``TRUE``)`
+
 ## Where to next
 
 The [function
