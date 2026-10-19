@@ -89,6 +89,15 @@ test_that("colour mapped to the same variable as x colours groups without splitt
   }
 })
 
+test_that("rows with a missing colour form a group of their own instead of being dropped", {
+  df <- mtcars
+  df$am[1:3] <- NA
+  box <- records(compiled_mark(glyph(df, x = factor(cyl), y = mpg) |> mark_boxplot(color = am)))
+  expect_equal(sum(pluck_num(box, ".n")), nrow(df))
+  hist <- records(compiled_mark(glyph(df, x = mpg) |> mark_histogram(color = am)))
+  expect_equal(sum(pluck_num(hist, ".count")), nrow(df))
+})
+
 test_that("a single outlier still serializes as a JSON array", {
   df <- data.frame(g = "a", y = c(1, 2, 3, 4, 100))
   json <- compile(glyph(df, x = g, y = y) |> mark_boxplot())$json

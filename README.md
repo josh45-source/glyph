@@ -156,9 +156,9 @@ added later without changing how plots are written. See
 
 ## Status
 
-glyph is at version 0.1. It has point, line, bar, area, text, rule, ribbon
-and link marks, and boxplot, violin, sina and histogram marks that compute
-their statistics from the data. It supports tooltips, hover, click, zoom,
+glyph is at version 0.1. It has point, line, bar, area, text, rule, ribbon,
+link and polygon marks, and boxplot, violin, sina and histogram marks that
+compute their statistics from the data. It supports tooltips, hover, click, zoom,
 brushing and crossfilter; entrance and keyframe animation; `compose()`,
 `facet()`, `marginals()` and `inset()`; theme tokens and presets; and JSON
 and Vega-Lite export.
@@ -167,7 +167,6 @@ Not done yet:
 
 - Statistical transforms as separate pipeline steps (smooth, density, bin,
   aggregate)
-- A polygon mark ([#7](https://github.com/josh45-source/glyph/issues/7))
 - A plan for medium and large datasets
   ([#8](https://github.com/josh45-source/glyph/issues/8))
 - A legend drawn by default for colour scales. Today a legend appears only

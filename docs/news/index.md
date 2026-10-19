@@ -2,6 +2,20 @@
 
 ## glyph (development version)
 
+- New
+  [`mark_polygon()`](https://josh45-source.github.io/glyph/reference/mark_polygon.md)
+  draws closed shapes from x/y vertices, one per value of `group`
+  ([\#7](https://github.com/josh45-source/glyph/issues/7)). Vertices are
+  joined in row order, `color` fills each shape, `style` sets the fill,
+  outline colour, outline width and opacity, and `radius` rounds the
+  corners. Each polygon is one element: it gets one tooltip, and
+  brushing or clicking it selects all of its rows, including in linked
+  panels. It works with
+  [`facet()`](https://josh45-source.github.io/glyph/reference/facet.md),
+  [`compose()`](https://josh45-source.github.io/glyph/reference/compose.md),
+  zoom, theme tokens, computed mappings and NA dropping.
+- Boxplot, violin, sina and histogram marks no longer leave out rows
+  whose colour is missing. Those rows now form a group of their own.
 - Plots now fit inside their container in both directions
   ([\#17](https://github.com/josh45-source/glyph/issues/17)). A plot was
   drawn at the spec’s width and height (600 x 400 unless set) and scaled

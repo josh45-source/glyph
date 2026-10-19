@@ -1,8 +1,9 @@
 #' @title Visual Marks
 #' @name marks
 #' @description Marks are the layers that draw data: points, lines, bars,
-#'   areas, text, rules, ribbons and links. Each `mark_*()` call adds one
-#'   layer to the spec. [mark_boxplot()], [mark_violin()], [mark_sina()] and
+#'   areas, text, rules, ribbons, links and polygons. Each `mark_*()` call
+#'   adds one layer to the spec. [mark_boxplot()], [mark_violin()],
+#'   [mark_sina()] and
 #'   [mark_histogram()] summarise the distribution of a variable; their
 #'   statistics are computed from the data when the plot is compiled.
 #'
@@ -108,6 +109,49 @@ mark_ribbon <- function(spec, ..., data = NULL, style = list()) {
 mark_link <- function(spec, ..., data = NULL, style = list()) {
   add_mark(spec, "link", rlang::enquos(...), data, style,
            defaults = list(stroke_width = 1, opacity = 0.5))
+}
+
+#' Add a polygon mark
+#'
+#' @description Draws closed shapes from `x`/`y` vertices. Rows that share a
+#'   value of `group` are the vertices of one polygon, joined in row order,
+#'   and the last vertex is joined back to the first. Without a `group`
+#'   mapping, all rows form one polygon. Mapping `color` fills each polygon by
+#'   its value; a polygon whose rows have different colours is split into one
+#'   polygon per colour.
+#'
+#'   Each polygon is one element: its tooltip shows the polygon rather than a
+#'   single vertex, and brushing or clicking it selects all of its rows. A
+#'   tooltip template can use any column that has the same value on every row
+#'   of the polygon, such as a name or an id. Rows with a missing `x` or `y`
+#'   are dropped first, with a warning, and polygons left with fewer than
+#'   three vertices are not drawn.
+#' @inheritParams mark_point
+#' @param ... Aesthetic mappings: `x` and `y` (required, numeric), `group`
+#'   and `color`.
+#' @param style Named list of fixed visual properties: `fill` (a colour used
+#'   when `color` isn't mapped), `stroke` (outline colour, the theme's
+#'   foreground colour by default), `stroke_width` (in pixels, 0 for no
+#'   outline) and `opacity` (of the fill).
+#' @param radius Radius of rounded corners, in pixels. Each corner is rounded
+#'   by at most half the length of its shorter edge. 0 (the default) keeps
+#'   sharp corners.
+#' @return Modified \code{glyph_spec} object with the polygon mark added
+#' @export
+#'
+#' @examples
+#' triangles <- data.frame(
+#'   id = rep(c("a", "b"), each = 3),
+#'   x = c(0, 1, 0.5, 1.5, 2.5, 2),
+#'   y = c(0, 0, 1, 0, 0, 1)
+#' )
+#' glyph(triangles, x = x, y = y) |>
+#'   mark_polygon(group = id, color = id)
+mark_polygon <- function(spec, ..., data = NULL, style = list(), radius = 0) {
+  check_number(radius, "radius", min = 0)
+  add_mark(spec, "polygon", rlang::enquos(...), data, style,
+           defaults = list(opacity = 0.7, stroke_width = 1, radius = radius),
+           stat = list(type = "polygon"))
 }
 
 # ---- Statistical marks -------------------------------------------------------
