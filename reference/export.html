@@ -58,9 +58,9 @@
 
 <dt id="arg-file">file<a class="anchor" aria-label="anchor" href="#arg-file"></a></dt>
 <dd><p>Output file path. Extension determines format. Currently
-implemented: <code>.html</code> (self-contained interactive widget) and <code>.json</code>
-(the compiled spec). Other extensions (<code>.svg</code>, <code>.png</code>, <code>.pdf</code>) are
-planned but not yet implemented, and currently just print a message.</p></dd>
+implemented: <code>.html</code> (interactive widget) and <code>.json</code> (the compiled
+spec). Other extensions (<code>.svg</code>, <code>.png</code>, <code>.pdf</code>) are planned but not yet
+implemented, and currently just print a message.</p></dd>
 
 
 <dt id="arg-width">width<a class="anchor" aria-label="anchor" href="#arg-width"></a></dt>
@@ -74,6 +74,15 @@ planned but not yet implemented, and currently just print a message.</p></dd>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>Invisibly returns the output file path</p>
+    </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>A single self-contained <code>.html</code> file needs <a href="https://pandoc.org" class="external-link">pandoc</a>.
+RStudio ships with pandoc, so this works out of the box there; elsewhere,
+install pandoc and make sure it is on your <code>PATH</code>. Without pandoc,
+<code>export()</code> still writes the <code>.html</code> file but puts the JavaScript it needs
+in a <code>&lt;name&gt;_files</code> folder next to it, and tells you so. Keep the two
+together when moving or sharing the plot.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
