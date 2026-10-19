@@ -10,9 +10,9 @@ export(spec, file, width = 800, height = 600)
 \item{spec}{A glyph_spec or glyph_compiled}
 
 \item{file}{Output file path. Extension determines format. Currently
-implemented: \code{.html} (self-contained interactive widget) and \code{.json}
-(the compiled spec). Other extensions (\code{.svg}, \code{.png}, \code{.pdf}) are
-planned but not yet implemented, and currently just print a message.}
+implemented: \code{.html} (interactive widget) and \code{.json} (the compiled
+spec). Other extensions (\code{.svg}, \code{.png}, \code{.pdf}) are planned but not yet
+implemented, and currently just print a message.}
 
 \item{width}{Width in pixels}
 
@@ -23,4 +23,12 @@ Invisibly returns the output file path
 }
 \description{
 Export to various formats
+}
+\details{
+A single self-contained \code{.html} file needs \href{https://pandoc.org}{pandoc}.
+RStudio ships with pandoc, so this works out of the box there; elsewhere,
+install pandoc and make sure it is on your \code{PATH}. Without pandoc,
+\code{export()} still writes the \code{.html} file but puts the JavaScript it needs
+in a \verb{<name>_files} folder next to it, and tells you so. Keep the two
+together when moving or sharing the plot.
 }

@@ -406,6 +406,49 @@ test_that("export() to JSON works", {
   expect_equal(content[["$schema"]], "glyph/v0.1")
 })
 
+test_that("export() to HTML is self-contained when pandoc is available", {
+  spec <- glyph(mtcars, x = wt, y = mpg) |> mark_point()
+  tmp <- tempfile(fileext = ".html")
+  on.exit(unlink(tmp), add = TRUE)
+  selfcontained <- NULL
+  local_mocked_bindings(has_pandoc = function() TRUE)
+  local_mocked_bindings(
+    saveWidget = function(widget, file, selfcontained = TRUE, ...) {
+      selfcontained <<- selfcontained
+      writeLines("<html></html>", file)
+    },
+    .package = "htmlwidgets"
+  )
+  expect_message(export(spec, tmp), "Exported interactive HTML")
+  expect_true(selfcontained)
+  expect_true(file.exists(tmp))
+})
+
+test_that("export() to HTML falls back to a _files folder without pandoc", {
+  spec <- glyph(mtcars, x = wt, y = mpg) |> mark_point()
+  dir <- tempfile("export-")
+  dir.create(dir)
+  on.exit(unlink(dir, recursive = TRUE), add = TRUE)
+  tmp <- file.path(dir, "plot.html")
+  local_mocked_bindings(has_pandoc = function() FALSE)
+  msgs <- character()
+  withCallingHandlers(
+    result <- export(spec, tmp),
+    message = function(m) {
+      msgs <<- c(msgs, conditionMessage(m))
+      invokeRestart("muffleMessage")
+    }
+  )
+  msg <- paste(msgs, collapse = "\n")
+  expect_match(msg, "not as a single self-contained file", fixed = TRUE)
+  expect_match(msg, "plot_files", fixed = TRUE)
+  expect_match(msg, "pandoc", fixed = TRUE)
+  expect_equal(result, tmp)
+  expect_true(file.exists(tmp))
+  expect_true(dir.exists(file.path(dir, "plot_files")))
+  expect_true(any(grepl("plot_files/", readLines(tmp, warn = FALSE), fixed = TRUE)))
+})
+
 test_that("summary.glyph_spec works", {
   spec <- glyph(mtcars, x = wt, y = mpg) |>
     mark_point() |>
