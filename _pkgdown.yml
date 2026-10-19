@@ -52,7 +52,22 @@ reference:
   desc: Geometric layers that draw data onto the plot.
   contents:
   - marks
-  - starts_with("mark_")
+  - mark_point
+  - mark_line
+  - mark_bar
+  - mark_area
+  - mark_text
+  - mark_rule
+  - mark_ribbon
+  - mark_link
+
+- title: Statistical marks
+  desc: Marks that summarise the distribution of a variable.
+  contents:
+  - mark_boxplot
+  - mark_violin
+  - mark_sina
+  - mark_histogram
 
 - title: Interactivity
   desc: Tooltips, zoom, brushing, and linked selections.

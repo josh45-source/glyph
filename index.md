@@ -31,8 +31,10 @@ when you want to set the width and height.
 ## What goes in the spec
 
 Marks are the layers that draw data: points, lines, bars, areas, text,
-rules, ribbons and links. Each is a `mark_*()` function, and mappings are
-bare column names or expressions such as `factor(cyl)`.
+rules, ribbons and links, plus boxplots, violins, sina points and
+histograms, which summarise a variable's distribution. Each is a
+`mark_*()` function, and mappings are bare column names or expressions such
+as `factor(cyl)`.
 
 [`interact()`](reference/interact.html) adds tooltips, hover effects, zoom,
 brushing and click handling. [`selection()`](reference/selection.html)

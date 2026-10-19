@@ -8,6 +8,27 @@
   narrow containers, and plots in R Markdown documents ran past their 400px
   box into the text below. Plots and facet grids are now drawn at the size
   of the container they are in, and are redrawn when it is resized.
+* New statistical marks (#6): `mark_boxplot()`, `mark_violin()`,
+  `mark_sina()` and `mark_histogram()`. Their statistics are computed in R
+  when the plot is compiled, with `stats::quantile()`, `stats::density()`
+  and `hist()`-style bins, after computed mappings are evaluated and rows
+  with missing values are dropped. They work with `facet()` (summaries are
+  computed per panel), `compose()`, theme tokens, tooltips (which show the
+  statistics), hover, click and brushing. Each box, violin or bin knows which
+  rows it summarises, so brushing points or linked panels highlights the
+  boxes and bins that contain the selected rows, and brushing a box selects
+  its rows.
+* Brushing and zooming now apply to the whole plot rather than to each point
+  mark separately. A plot with several brushable marks gets one brush that
+  covers all of them, and `interact(zoom = TRUE)` now zooms plots that have
+  no point mark.
+* Points on a categorical x axis are now drawn in the middle of their
+  category instead of at its left edge.
+* A quantitative axis now spans the values of every mark in the plot, not
+  just the first, so a second mark with a wider range is no longer cut off.
+* Automatic tooltips show a computed mapping by its expression (e.g.
+  `factor(cyl)`) instead of its internal column name, and tooltip templates
+  can refer to fields whose names contain dots, such as `{.median}`.
 * Plots and layouts now draw automatically in R Markdown, Quarto and
   vignettes, without ending the pipeline with `render()` (#13). glyph
   registers `knit_print()` methods for `glyph_spec` and `glyph_layout`;

@@ -160,6 +160,62 @@ glyph(mtcars, x = wt, y = mpg) |>
 
 Use the play/pause button to step through the `gear` groups.
 
+## 10. Boxplots
+
+[`mark_boxplot()`](https://josh45-source.github.io/glyph/reference/mark_boxplot.html)
+summarises a numeric variable for each group. The box runs from the first
+to the third quartile and the line across it is the median. Values beyond
+the whiskers are drawn as separate points.
+
+```{r}
+glyph(mtcars, x = factor(cyl), y = mpg) |>
+  mark_boxplot() |>
+  interact(tooltip = TRUE, hover = "outline")
+```
+
+Rest the pointer on a box to read its quartiles.
+
+## 11. Violins
+
+[`mark_violin()`](https://josh45-source.github.io/glyph/reference/mark_violin.html)
+draws each group's distribution as a mirrored density curve. Every violin
+uses the same density scale, so a wide section means many cars with similar
+values.
+
+```{r}
+glyph(mtcars, x = factor(gear), y = mpg) |>
+  mark_violin(color = factor(gear)) |>
+  interact(tooltip = TRUE)
+```
+
+## 12. Sina points
+
+[`mark_sina()`](https://josh45-source.github.io/glyph/reference/mark_sina.html)
+draws one point per row and spreads the points sideways by how common their
+value is. They fill the same outline a violin would, but each point is
+still a car, so you can brush across them.
+
+```{r}
+glyph(mtcars, x = factor(cyl), y = mpg) |>
+  mark_violin(style = list(opacity = 0.2)) |>
+  mark_sina() |>
+  interact(tooltip = TRUE, brush = TRUE)
+```
+
+Drag across a group to select the cars in it.
+
+## 13. Histograms
+
+[`mark_histogram()`](https://josh45-source.github.io/glyph/reference/mark_histogram.html)
+counts the rows that fall in each bin of a numeric variable. Mapping colour
+stacks the counts for each group within a bin.
+
+```{r}
+glyph(mtcars, x = mpg) |>
+  mark_histogram(binwidth = 2.5, color = factor(am)) |>
+  interact(tooltip = TRUE)
+```
+
 ## Where to next
 
 The [function reference](https://josh45-source.github.io/glyph/reference/index.html)

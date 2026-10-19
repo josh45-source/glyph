@@ -147,15 +147,22 @@ function renderSpecInto(container, spec, opts) {
   // mapped position aesthetic. Fall back to the shared panel data otherwise.
   const scales = {};
   const forced = opts.forceDomain || {};
+  // A quantitative position scale spans every mark's values, not just the
+  // first mark's, so a later mark (an outlier, a histogram bin, a wider
+  // second dataset) isn't drawn outside the axes.
+  const extents = {
+    x: unionExtents((spec.marks || []).map(m => markExtent(m, (m.data && m.data.values) || data, "x"))),
+    y: unionExtents((spec.marks || []).map(m => markExtent(m, (m.data && m.data.values) || data, "y")))
+  };
   for (const mark of (spec.marks || [])) {
     const enc = mark.encoding || {};
     const markData = (mark.data && mark.data.values) || data;
 
     if (enc.x?.field) {
-      scales.x = scales.x || buildScale(enc.x, markData, [0, innerW], spec.scales?.x, forced.x);
+      scales.x = scales.x || buildScale(enc.x, markData, [0, innerW], spec.scales?.x, forced.x, extents.x);
     }
     if (enc.y?.field) {
-      scales.y = scales.y || buildScale(enc.y, markData, [innerH, 0], spec.scales?.y, forced.y);
+      scales.y = scales.y || buildScale(enc.y, markData, [innerH, 0], spec.scales?.y, forced.y, extents.y);
     }
     if (enc.x2?.field && !scales.x) {
       scales.x = buildScale(enc.x2, markData, [0, innerW], spec.scales?.x, forced.x);
@@ -190,11 +197,34 @@ function renderSpecInto(container, spec, opts) {
   // --- Draw axes ---
   drawAxes(plotArea, scales, innerW, innerH, theme, spec.scales);
 
+  // --- Crossfilter plumbing ---
+  let externalListener = null;
+  const emitSelection = (idxSet) => { if (externalListener) externalListener(idxSet); };
+
   // --- Draw marks ---
   const markRegistry = [];
   for (const mark of (spec.marks || [])) {
     const markData = (mark.data && mark.data.values) || data;
     drawMark(plotArea, mark, markData, scales, innerW, innerH, theme, spec, markRegistry);
+  }
+  // wire up emitSelection into interactive marks (click select) drawn above
+  markRegistry.forEach(entry => { entry.emitSelection = emitSelection; });
+
+  // --- Brush and zoom ---
+  // One brush and one zoom per plot, covering every mark, so with several
+  // brushable marks (points over boxplots, say) a drag still selects from
+  // all of them; a brush per mark would leave only the last one reachable.
+  // Brush and zoom share one drag state so a drag does only one of them.
+  const interact = spec.interact || {};
+  const dragState = createDragState(interact);
+  if (interact.brush?.enabled) {
+    const brushable = markRegistry.filter(e => e.brush);
+    if (brushable.length) {
+      addBrush(plotArea, brushable, innerW, innerH, dragState, emitSelection);
+    }
+  }
+  if (interact.zoom?.enabled) {
+    addZoom(svg.node(), plotArea, dragState);
   }
 
   // --- Legend (for selection(type = "legend")) ---
@@ -235,23 +265,20 @@ function renderSpecInto(container, spec, opts) {
     applyAnimation(plotArea, spec.animate, spec, scales, data, theme);
   }
 
-  // --- Crossfilter plumbing ---
-  let externalListener = null;
-  const emitSelection = (idxSet) => { if (externalListener) externalListener(idxSet); };
-
+  // A selection from a linked panel is a set of row indices. Each element is
+  // highlighted when any of the rows it draws is selected: a point draws one
+  // row, a box or histogram bin draws many (its `.rows`).
   function applyExternalSelection(idxSet) {
     markRegistry.forEach(entry => {
       entry.selection.attr("opacity", function(d, i) {
         if (!idxSet || idxSet.size === 0) return entry.baseOpacity;
-        return idxSet.has(i) ? Math.max(entry.baseOpacity, 0.9) : Math.min(entry.baseOpacity, 0.15);
+        return rowsOfDatum(entry, d, i).some(r => idxSet.has(r))
+          ? Math.max(entry.baseOpacity, 0.9) : Math.min(entry.baseOpacity, 0.15);
       });
     });
   }
 
   function onSelectionChange(fn) { externalListener = fn; }
-
-  // wire up emitSelection into interactive marks (brush / click) drawn above
-  markRegistry.forEach(entry => { entry.emitSelection = emitSelection; });
 
   return { svg, plotArea, scales, data, markRegistry, applyExternalSelection, onSelectionChange, emitSelection };
 }
@@ -283,31 +310,63 @@ function computeSharedDomains(panels, sharedAxes) {
   const wantY = sharedAxes === true || sharedAxes === "both" || sharedAxes === "y";
   const out = {};
 
+  // Every mark of every panel contributes, using the mark's own rows (which
+  // carry computed columns and statistical summaries) when it has them.
+  const panelExtent = (p, axis) => unionExtents((p.marks || []).map(m =>
+    markExtent(m, (m.data && m.data.values) || p.data?.values || [], axis)));
+
   if (wantX) {
-    let ext = [Infinity, -Infinity];
-    panels.forEach(p => {
-      const field = getPanelField(p, "x");
-      const values = p.data?.values || [];
-      if (!field || values.length === 0) return;
-      const e = d3.extent(values, d => +d[field]);
-      if (e[0] < ext[0]) ext[0] = e[0];
-      if (e[1] > ext[1]) ext[1] = e[1];
-    });
-    if (isFinite(ext[0]) && isFinite(ext[1])) out.x = ext;
+    const ext = unionExtents(panels.map(p => panelExtent(p, "x")));
+    if (ext) out.x = ext;
   }
   if (wantY) {
-    let ext = [Infinity, -Infinity];
-    panels.forEach(p => {
-      const field = getPanelField(p, "y");
-      const values = p.data?.values || [];
-      if (!field || values.length === 0) return;
-      const e = d3.extent(values, d => +d[field]);
-      if (e[0] < ext[0]) ext[0] = e[0];
-      if (e[1] > ext[1]) ext[1] = e[1];
-    });
-    if (isFinite(ext[0]) && isFinite(ext[1])) out.y = ext;
+    const ext = unionExtents(panels.map(p => panelExtent(p, "y")));
+    if (ext) out.y = ext;
   }
   return out;
+}
+
+// The range of values a mark draws along a position axis, or null when it
+// draws nothing numeric there (no mapping, or a categorical one). Statistical
+// marks report the extent of what they draw (whiskers and outliers, bin
+// edges, counts from zero) rather than of a raw data column.
+function markExtent(mark, data, axis) {
+  const enc = mark.encoding || {};
+  const stat = mark.stat && mark.stat.type;
+  const vals = [];
+
+  if (stat === "boxplot" && axis === "y") {
+    data.forEach(d => {
+      vals.push(d[".ymin"], d[".ymax"]);
+      (d[".outliers"] || []).forEach(v => vals.push(v));
+    });
+  } else if (stat === "violin" && axis === "y") {
+    data.forEach(d => vals.push(d[".ymin"], d[".ymax"]));
+  } else if (stat === "histogram" && axis === "x") {
+    const breaks = mark.stat.breaks || [];
+    if (breaks.length) vals.push(breaks[0], breaks[breaks.length - 1]);
+    data.forEach(d => vals.push(d[".x0"], d[".x1"]));
+  } else if (stat === "histogram" && axis === "y") {
+    vals.push(0);
+    data.forEach(d => vals.push(d[".ymax"]));
+  } else if (enc[axis]?.field && enc[axis].type !== "nominal" && enc[axis].type !== "ordinal") {
+    const f = enc[axis].field;
+    data.forEach(d => vals.push(d[f]));
+  } else if (axis === "y" && enc.y_min?.field && enc.y_max?.field) {
+    data.forEach(d => vals.push(d[enc.y_min.field], d[enc.y_max.field]));
+  } else {
+    return null;
+  }
+
+  const nums = vals.filter(v => v !== null && v !== undefined && v !== "" && isFinite(+v)).map(Number);
+  if (nums.length === 0) return null;
+  return d3.extent(nums);
+}
+
+function unionExtents(extents) {
+  const valid = extents.filter(Boolean);
+  if (valid.length === 0) return null;
+  return [d3.min(valid, e => e[0]), d3.max(valid, e => e[1])];
 }
 
 function renderLayout(container, layoutSpec, fallbackW, fallbackH) {
@@ -497,13 +556,15 @@ function renderFacets(container, spec, fallbackW, fallbackH) {
 
 // ---- Scale builder ----------------------------------------------------------
 
-function buildScale(encoding, data, range, scaleOpts, forcedDomain) {
+// `dataExtent`, when given, is the range of values every mark draws on this
+// axis (see markExtent); it replaces the extent of `field` in `data` alone.
+function buildScale(encoding, data, range, scaleOpts, forcedDomain, dataExtent) {
   const field = encoding.field;
   const type = encoding.type;
   const opts = scaleOpts || {};
 
   if (type === "quantitative") {
-    let domain = forcedDomain || opts.domain || d3.extent(data, d => +d[field]);
+    let domain = forcedDomain || opts.domain || dataExtent || d3.extent(data, d => +d[field]);
     if (domain[0] === undefined || domain[1] === undefined || (domain[0] === domain[1] && !isFinite(domain[0]))) {
       domain = [0, 1];
     }
@@ -532,7 +593,9 @@ function buildScale(encoding, data, range, scaleOpts, forcedDomain) {
   }
 
   if (type === "nominal" || type === "ordinal") {
-    const domain = [...new Set(data.map(d => d[field]))];
+    // Statistical marks send their groups in display order (factor levels or
+    // sorted values), so every facet panel shows the same categories.
+    const domain = encoding.domain || [...new Set(data.map(d => d[field]))];
     return d3.scaleBand().domain(domain).range(range).padding(0.1);
   }
 
@@ -669,44 +732,113 @@ function drawMark(g, mark, data, scales, w, h, theme, spec, markRegistry) {
     case "link":
       drawLink(g, data, enc, scales, style, interact, theme);
       break;
+    case "sina":
+      drawPoints(g, data, enc, scales, style, w, h, interact, theme, markRegistry, "marks-sina");
+      break;
+    case "boxplot":
+      drawBoxplot(g, data, enc, scales, style, interact, theme, markRegistry);
+      break;
+    case "violin":
+      drawViolin(g, data, enc, scales, style, interact, theme, markRegistry);
+      break;
+    case "histogram":
+      drawHistogram(g, data, enc, scales, style, interact, theme, markRegistry);
+      break;
   }
 }
 
-function registerMark(markRegistry, selection, baseOpacity) {
-  if (markRegistry) markRegistry.push({ selection, baseOpacity });
+// Each entry describes one mark's drawn elements for the selection
+// machinery (brush, click, crossfilter, legend):
+//   selection    the d3 selection whose opacity reflects a selection
+//   baseOpacity  its normal opacity
+//   rowsOf       optional (d, i) => row indices the element draws; by
+//                default element i draws row i
+//   brush        optional adapter for the plot's brush (see addBrush)
+function registerMark(markRegistry, selection, baseOpacity, extra) {
+  if (markRegistry) markRegistry.push(Object.assign({ selection, baseOpacity }, extra || {}));
 }
 
-function drawPoints(g, data, enc, scales, style, w, h, interact, theme, markRegistry) {
+function rowsOfDatum(entry, d, i) {
+  return entry.rowsOf ? entry.rowsOf(d, i) : [i];
+}
+
+// Horizontal position of a row-level mark (points, sina). On a band
+// (categorical) scale the point sits in its band: at the centre, or at the
+// slot (`.xc`) and sideways offset (`.offset`, both fractions of the band)
+// a sina mark computed. `slotWidth` stands in for the band width when x is a
+// continuous scale.
+function xPos(scales, enc, d, slotWidth) {
+  if (!scales.x) return 0;
+  const v = scales.x(getVal(d, enc.x));
+  if (scales.x.bandwidth) {
+    const bw = scales.x.bandwidth();
+    return v + bw * (d[".xc"] ?? 0.5) + bw * (d[".offset"] ?? 0);
+  }
+  return v + (slotWidth || 0) * (((d[".xc"] ?? 0.5) - 0.5) + (d[".offset"] ?? 0));
+}
+
+function yPos(scales, enc, d) {
+  return scales.y ? scales.y(getVal(d, enc.y)) : 0;
+}
+
+// Width available to one group of a statistical mark: the band width on a
+// categorical x scale, or, on a continuous one (when another mark built the
+// x scale from the same numeric column), 80% of the closest spacing between
+// the group positions.
+function groupSlotWidth(scales, enc, fallback) {
+  if (!scales.x) return fallback;
+  if (scales.x.bandwidth) return scales.x.bandwidth();
+  const pos = (enc.x?.domain || []).map(v => scales.x(v)).filter(isFinite).sort((a, b) => a - b);
+  let gap = Infinity;
+  for (let i = 1; i < pos.length; i++) gap = Math.min(gap, pos[i] - pos[i - 1]);
+  return isFinite(gap) && gap > 0 ? gap * 0.8 : fallback;
+}
+
+// Left edge of a group's slot and its width, in pixels, for statistical marks
+// that draw one element per group (boxplot, violin).
+function groupGeometry(scales, enc, d, slotWidth) {
+  const v = scales.x ? scales.x(getVal(d, enc.x)) : 0;
+  const start = scales.x && scales.x.bandwidth ? v : v - slotWidth / 2;
+  const center = start + slotWidth * (d[".xc"] ?? 0.5);
+  const half = slotWidth * (d[".xw"] ?? 0.8) / 2;
+  return { center, half };
+}
+
+function drawPoints(g, data, enc, scales, style, w, h, interact, theme, markRegistry, cls) {
   const baseOpacity = style.opacity || 0.8;
-  const points = g.append("g").attr("class", "marks-point")
+  const slotWidth = groupSlotWidth(scales, enc, 40);
+  const px = d => xPos(scales, enc, d, slotWidth);
+  const py = d => yPos(scales, enc, d);
+  const points = g.append("g").attr("class", cls || "marks-point")
     .selectAll("circle")
     .data(data)
     .join("circle")
-    .attr("cx", d => scales.x ? scales.x(getVal(d, enc.x)) : 0)
-    .attr("cy", d => scales.y ? scales.y(getVal(d, enc.y)) : 0)
+    .attr("cx", px)
+    .attr("cy", py)
     .attr("r", d => scales.size ? scales.size(getVal(d, enc.size)) : (style.size || 5))
     .attr("fill", d => scales.color ? scales.color(getVal(d, enc.color)) : (theme.accent || "#4269d0"))
     .attr("opacity", baseOpacity)
     .attr("stroke", "#fff")
     .attr("stroke-width", 1);
 
-  registerMark(markRegistry, points, baseOpacity);
-
-  // Interactivity
-  // Shared by brush and zoom so a drag resolves to exactly one of them.
-  const dragState = createDragState(interact);
+  registerMark(markRegistry, points, baseOpacity, {
+    // A point is hit by a brush when its centre is inside the brushed area.
+    brush: {
+      rowLevel: true,
+      nearest: (mx, my, tolerance) => nearestPointWithin(points, px, py, mx, my, tolerance),
+      hit: (d, i, node, [[x0, y0], [x1, y1]]) => {
+        const cx = px(d), cy = py(d);
+        return cx >= x0 && cx <= x1 && cy >= y0 && cy <= y1;
+      },
+      opacity: hit => hit ? 1 : 0.1
+    }
+  });
 
   if (interact.tooltip?.enabled) {
     addTooltip(points, data, enc, interact.tooltip, theme);
   }
   if (interact.hover?.enabled) {
     addHoverEffect(points, interact.hover, style);
-  }
-  if (interact.brush?.enabled) {
-    addBrush(g, points, scales, enc, interact.brush, markRegistry, w, h, dragState);
-  }
-  if (interact.zoom?.enabled) {
-    addZoom(g.node().parentNode, g, scales, enc, points, "point", dragState);
   }
   if (interact.click?.enabled) {
     addClickSelect(points, interact.click.action, baseOpacity, markRegistry);
@@ -911,6 +1043,237 @@ function drawLink(g, data, enc, scales, style, interact, theme) {
     .attr("opacity", style.opacity ?? 0.5);
 
   if (interact.tooltip?.enabled) addTooltip(links, data, enc, interact.tooltip, theme);
+}
+
+// ---- Statistical marks ------------------------------------------------------
+//
+// Boxplot, violin and histogram data arrive already summarised by the R side
+// (R/stats.R): one record per box, violin or bin, with the statistics in
+// dot-prefixed fields and `.rows` listing the row indices it summarises.
+// These functions only draw. Sina marks are row-level and use drawPoints().
+
+function statFill(scales, enc, theme) {
+  return d => (scales.color && enc.color?.field) ? scales.color(getVal(d, enc.color)) : (theme.accent || "#4269d0");
+}
+
+function fmtNum(v) {
+  return (typeof v === "number" && isFinite(v)) ? String(+v.toPrecision(4)) : v;
+}
+
+function axisLabel(encoding) {
+  return encoding ? (encoding.label || encoding.field) : null;
+}
+
+// "x: 4" and "color: 1" lines naming the group a summary record belongs to.
+function groupLines(d, enc) {
+  const lines = [];
+  for (const aes of ["x", "color"]) {
+    const e = enc[aes];
+    if (!e?.field) continue;
+    if (aes === "color" && (e.field === enc.x?.field || (e.label && e.label === enc.x?.label))) continue;
+    // A computed mapping (e.g. factor(cyl)) has a generated field name but
+    // keeps its expression as the label. The single group of a boxplot with
+    // no x mapping has neither, and needs no line.
+    const name = e.label || (e.field.startsWith(".") ? null : e.field);
+    if (name) lines.push(`${name}: ${d[e.field]}`);
+  }
+  return lines;
+}
+
+// Brush adapter for elements that each stand for many rows: hit when the
+// element's box overlaps the brushed area, found under the pointer by its box.
+function summaryBrush(selection) {
+  const bbox = node => node.getBBox();
+  return {
+    rowLevel: false,
+    nearest: (mx, my) => {
+      let found = null;
+      selection.each(function() {
+        const b = bbox(this);
+        if (mx >= b.x && mx <= b.x + b.width && my >= b.y && my <= b.y + b.height) found = this;
+      });
+      return found;
+    },
+    hit: (d, i, node, [[x0, y0], [x1, y1]]) => {
+      const b = bbox(node);
+      return b.x <= x1 && b.x + b.width >= x0 && b.y <= y1 && b.y + b.height >= y0;
+    },
+    opacity: hit => hit ? 1 : 0.15
+  };
+}
+
+// Hover emphasis for summary elements: a heavier outline (in the theme's
+// foreground colour, for elements drawn without one, like histogram bins) and
+// a stronger fill while the pointer is over the element. The `effect` names
+// used for points ("enlarge", "brighten", "outline") all map to this, since
+// there is no radius to enlarge.
+function addStatHover(selection, targetSelector, theme) {
+  const targets = node => targetSelector ? d3.select(node).selectAll(targetSelector) : d3.select(node);
+  selection
+    .on("mouseover.hover", function() {
+      targets(this).each(function() {
+        if (this.__glyphHover) return;
+        const saved = this.__glyphHover = {
+          stroke: this.getAttribute("stroke"),
+          sw: this.getAttribute("stroke-width"),
+          fo: this.getAttribute("fill-opacity")
+        };
+        const el = d3.select(this);
+        if (saved.stroke === null) el.attr("stroke", theme.fg || "#333");
+        el.attr("stroke-width", +(saved.sw || 0) + 1.5);
+        if (saved.fo !== null) el.attr("fill-opacity", Math.min(1, +saved.fo + 0.2));
+      });
+    })
+    .on("mouseout.hover", function() {
+      targets(this).each(function() {
+        const saved = this.__glyphHover;
+        if (!saved) return;
+        d3.select(this)
+          .attr("stroke", saved.stroke)
+          .attr("stroke-width", saved.sw)
+          .attr("fill-opacity", saved.fo);
+        this.__glyphHover = null;
+      });
+    });
+}
+
+function addStatInteractions(selection, data, enc, interact, theme, markRegistry, baseOpacity, autoText, hoverTarget) {
+  registerMark(markRegistry, selection, baseOpacity, {
+    rowsOf: d => d[".rows"] || [],
+    brush: summaryBrush(selection)
+  });
+  if (interact.tooltip?.enabled) addTooltip(selection, data, enc, interact.tooltip, theme, autoText);
+  if (interact.hover?.enabled) addStatHover(selection, hoverTarget, theme);
+  if (interact.click?.enabled) addClickSelect(selection, interact.click.action, baseOpacity, markRegistry);
+}
+
+function drawBoxplot(g, data, enc, scales, style, interact, theme, markRegistry) {
+  const fg = theme.fg || "#333";
+  const fill = statFill(scales, enc, theme);
+  const slotWidth = groupSlotWidth(scales, enc, 40);
+  const sw = style.stroke_width || 1;
+  const y = v => scales.y ? scales.y(v) : 0;
+
+  const boxes = g.append("g").attr("class", "marks-boxplot")
+    .selectAll("g")
+    .data(data)
+    .join("g")
+    .attr("class", "glyph-box")
+    .attr("opacity", 1);
+
+  boxes.each(function(d) {
+    const box = d3.select(this);
+    const { center, half } = groupGeometry(scales, enc, d, slotWidth);
+    box.append("line").attr("class", "glyph-whisker")
+      .attr("x1", center).attr("x2", center)
+      .attr("y1", y(d[".ymax"])).attr("y2", y(d[".upper"]))
+      .attr("stroke", fg).attr("stroke-width", sw);
+    box.append("line").attr("class", "glyph-whisker")
+      .attr("x1", center).attr("x2", center)
+      .attr("y1", y(d[".lower"])).attr("y2", y(d[".ymin"]))
+      .attr("stroke", fg).attr("stroke-width", sw);
+    box.append("rect").attr("class", "glyph-box-rect")
+      .attr("x", center - half).attr("width", 2 * half)
+      .attr("y", y(d[".upper"]))
+      .attr("height", Math.max(0, y(d[".lower"]) - y(d[".upper"])))
+      .attr("fill", fill(d)).attr("fill-opacity", style.opacity ?? 0.7)
+      .attr("stroke", fg).attr("stroke-width", sw);
+    box.append("line").attr("class", "glyph-median")
+      .attr("x1", center - half).attr("x2", center + half)
+      .attr("y1", y(d[".middle"])).attr("y2", y(d[".middle"]))
+      .attr("stroke", fg).attr("stroke-width", sw * 2);
+    box.selectAll("circle.glyph-outlier")
+      .data(d[".outliers"] || [])
+      .join("circle")
+      .attr("class", "glyph-outlier")
+      .attr("cx", center).attr("cy", v => y(v)).attr("r", 2.5)
+      .attr("fill", fill(d)).attr("stroke", fg).attr("stroke-width", 0.75);
+  });
+
+  const autoText = d => [
+    ...groupLines(d, enc),
+    `n: ${d[".n"]}`,
+    `upper whisker: ${fmtNum(d[".ymax"])}`,
+    `Q3: ${fmtNum(d[".upper"])}`,
+    `median: ${fmtNum(d[".middle"])}`,
+    `Q1: ${fmtNum(d[".lower"])}`,
+    `lower whisker: ${fmtNum(d[".ymin"])}`,
+    ...((d[".outliers"] || []).length ? [`outliers: ${d[".outliers"].map(fmtNum).join(", ")}`] : [])
+  ].join("\n");
+
+  addStatInteractions(boxes, data, enc, interact, theme, markRegistry, 1, autoText, ".glyph-box-rect");
+}
+
+function drawViolin(g, data, enc, scales, style, interact, theme, markRegistry) {
+  const fg = theme.fg || "#333";
+  const fill = statFill(scales, enc, theme);
+  const slotWidth = groupSlotWidth(scales, enc, 40);
+  const baseOpacity = style.opacity ?? 0.6;
+
+  const shape = d => {
+    const { center, half } = groupGeometry(scales, enc, d, slotWidth);
+    const ys = d[".dens_y"] || [];
+    const ws = d[".dens_w"] || [];
+    const pts = ys.map((yv, i) => [yv, ws[i]]);
+    return d3.area()
+      .y(p => scales.y(p[0]))
+      .x0(p => center - half * p[1])
+      .x1(p => center + half * p[1])
+      .curve(d3.curveMonotoneY)(pts);
+  };
+
+  const violins = g.append("g").attr("class", "marks-violin")
+    .selectAll("path")
+    .data(data)
+    .join("path")
+    .attr("class", "glyph-violin")
+    .attr("d", shape)
+    .attr("fill", fill)
+    .attr("fill-opacity", baseOpacity)
+    .attr("stroke", fg)
+    .attr("stroke-width", style.stroke_width || 1)
+    .attr("opacity", 1);
+
+  const autoText = d => [
+    ...groupLines(d, enc),
+    `n: ${d[".n"]}`,
+    `median: ${fmtNum(d[".middle"])}`,
+    `range: ${fmtNum(d[".ymin"])} to ${fmtNum(d[".ymax"])}`
+  ].join("\n");
+
+  addStatInteractions(violins, data, enc, interact, theme, markRegistry, 1, autoText, null);
+}
+
+function drawHistogram(g, data, enc, scales, style, interact, theme, markRegistry) {
+  const fill = statFill(scales, enc, theme);
+  const baseOpacity = style.opacity ?? 0.85;
+  const x = v => scales.x ? scales.x(v) : 0;
+  const y = v => scales.y ? scales.y(v) : 0;
+
+  // Bars start half a pixel inside each bin edge and leave a 1px gap, so
+  // neighbouring bins stay distinct without moving off their edges.
+  const bars = g.append("g").attr("class", "marks-histogram")
+    .selectAll("rect")
+    .data(data)
+    .join("rect")
+    .attr("class", "glyph-bin")
+    .attr("x", d => x(d[".x0"]) + 0.5)
+    .attr("width", d => Math.max(0, x(d[".x1"]) - x(d[".x0"]) - 1))
+    .attr("y", d => y(d[".ymax"]))
+    .attr("height", d => Math.max(0, y(d[".ymin"]) - y(d[".ymax"])))
+    .attr("fill", fill)
+    .attr("opacity", baseOpacity);
+
+  const label = axisLabel(enc.x);
+  const lowest = d3.min(data, d => d[".x0"]);
+  const autoText = d => [
+    // Bins are closed on the right; the lowest bin also includes its left edge.
+    `${label}: ${d[".x0"] === lowest ? "[" : "("}${fmtNum(d[".x0"])}, ${fmtNum(d[".x1"])}]`,
+    ...groupLines(d, Object.assign({}, enc, { x: null })),
+    `count: ${d[".count"]}`
+  ].join("\n");
+
+  addStatInteractions(bars, data, enc, interact, theme, markRegistry, baseOpacity, autoText, null);
 }
 
 // ---- Marginals ----------------------------------------------------------------
@@ -1169,12 +1532,10 @@ function pointerXY(event, node) {
 // space as scales.x/scales.y — within `tolerance` pixels. Used to forward
 // pointer events that land on a brush's overlay (which sits on top of the
 // marks so a drag can start anywhere) back to the mark underneath.
-function nearestPointWithin(points, scales, enc, mx, my, tolerance) {
+function nearestPointWithin(points, px, py, mx, my, tolerance) {
   let nearest = null, nearestDist = Infinity;
   points.each(function(d) {
-    const cx = scales.x(getVal(d, enc.x));
-    const cy = scales.y(getVal(d, enc.y));
-    const dist = Math.hypot(cx - mx, cy - my);
+    const dist = Math.hypot(px(d) - mx, py(d) - my);
     if (dist < nearestDist) { nearestDist = dist; nearest = this; }
   });
   return (nearest && nearestDist < tolerance) ? nearest : null;
@@ -1215,7 +1576,9 @@ function dragModeOf(dragState, fallback) {
 
 let glyphTooltipCounter = 0;
 
-function addTooltip(selection, data, enc, tooltipConfig, theme) {
+// `autoText`, when given, writes the text of an automatic (`tooltip = TRUE`)
+// tooltip; statistical marks use it to show their summary statistics.
+function addTooltip(selection, data, enc, tooltipConfig, theme, autoText) {
   // Unique per call so each mark's document-level dismiss listener (below)
   // doesn't overwrite another mark's when a plot has more than one
   // tooltip-enabled mark.
@@ -1234,14 +1597,19 @@ function addTooltip(selection, data, enc, tooltipConfig, theme) {
 
   function renderText(d) {
     let text = "";
-    if (tooltipConfig.template === "auto") {
-      // Auto-generate from encodings
+    if (tooltipConfig.template === "auto" && autoText) {
+      text = autoText(d);
+    } else if (tooltipConfig.template === "auto") {
+      // Auto-generate from encodings. A computed mapping's generated field
+      // name (".g_point_1_x") means nothing to a reader, so show its
+      // expression (the label) instead.
       for (const [key, val] of Object.entries(enc)) {
-        if (val?.field) text += `${val.field}: ${d[val.field]}\n`;
+        if (val?.field) text += `${val.label || val.field}: ${d[val.field]}\n`;
       }
     } else {
-      // Template string
-      text = tooltipConfig.template.replace(/\{(\w+)\}/g, (_, k) => d[k] ?? k);
+      // Template string. Field names may contain dots, so a template can
+      // also show a statistical mark's values, e.g. "{.median}".
+      text = tooltipConfig.template.replace(/\{([\w.]+)\}/g, (_, k) => d[k] ?? k);
     }
     return text.trim().replace(/\n/g, "<br>");
   }
@@ -1325,8 +1693,16 @@ function addClickSelect(selection, action, baseOpacity, markRegistry) {
       return selectedIdx.has(i2) ? Math.max(baseOpacity, 0.95) : Math.min(baseOpacity, 0.25);
     });
 
+    // Linked panels work in rows, and a box or bin draws many rows.
     const entry = (markRegistry || []).find(e => e.selection === selection);
-    if (entry && entry.emitSelection) entry.emitSelection(selectedIdx || new Set());
+    if (entry && entry.emitSelection) {
+      const rows = new Set();
+      if (selectedIdx) {
+        const nodes = selection.nodes();
+        selectedIdx.forEach(j => rowsOfDatum(entry, nodes[j].__data__, j).forEach(r => rows.add(r)));
+      }
+      entry.emitSelection(rows);
+    }
   });
 }
 
@@ -1334,16 +1710,46 @@ function addClickSelect(selection, action, baseOpacity, markRegistry) {
 
 let glyphBrushCounter = 0;
 
-function addBrush(g, points, scales, enc, brushConfig, markRegistry, w, h, dragState) {
-  const baseOpacity = +points.attr("opacity") || 0.8;
+// `entries` are the registered marks that can be brushed (see registerMark):
+// each has a `brush` adapter with
+//   rowLevel  true when each element draws one row (points, sina)
+//   nearest   (mx, my, tolerance) => the element under the pointer, or null
+//   hit       (d, i, node, [[x0, y0], [x1, y1]]) => whether the brushed area
+//             takes in the element
+//   opacity   (selected) => the element's opacity while a brush is active
+// When the plot has row-level marks, only they are hit-tested: brushing a few
+// points over a boxplot selects those points' rows, not every row of each
+// box underneath. Every brushable element is then highlighted when it draws
+// any selected row, so the boxes containing the brushed points light up too.
+// With only summary marks (boxes, violins, bins), the summary elements
+// themselves are hit-tested and select all the rows they draw.
+function addBrush(g, entries, w, h, dragState, emitSelection) {
+  const rowLevel = entries.filter(e => e.brush.rowLevel);
+  const hitTested = rowLevel.length ? rowLevel : entries;
 
-  // Forwards a tap/click that landed on the brush overlay to the point
+  // The element under the pointer, preferring row-level marks (a point over
+  // a box) and, within each kind, the mark drawn last (topmost).
+  function nearestElement(mx, my) {
+    const order = [...rowLevel].reverse().concat(entries.filter(e => !e.brush.rowLevel).reverse());
+    for (const entry of order) {
+      const node = entry.brush.nearest(mx, my, 12);
+      if (node) return node;
+    }
+    return null;
+  }
+
+  function clearSelection() {
+    entries.forEach(entry => entry.selection.attr("opacity", entry.baseOpacity));
+    emitSelection(new Set());
+  }
+
+  // Forwards a tap/click that landed on the brush overlay to the element
   // underneath it, so tooltips and click-select still respond. Called from
   // two places: the brush's own "end" (a no-drag tap in brush mode) and a
   // plain click listener (pan mode, where no brush gesture runs at all).
   function forwardTapToPoint(event, node) {
     const [mx, my] = pointerXY(event, g.node());
-    const nearest = nearestPointWithin(points, scales, enc, mx, my, 12);
+    const nearest = nearestElement(mx, my);
     if (!nearest) return false;
     nearest.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
     return true;
@@ -1362,9 +1768,7 @@ function addBrush(g, points, scales, enc, brushConfig, markRegistry, w, h, dragS
     .on("brush end", function(event) {
       const selection = event.selection;
       if (!selection) {
-        points.attr("opacity", baseOpacity);
-        const entry = (markRegistry || []).find(e => e.selection === points);
-        if (entry && entry.emitSelection) entry.emitSelection(new Set());
+        clearSelection();
 
         // The brush's overlay covers the whole plot and sits on top of the
         // points (so a drag can start from anywhere), which also means it
@@ -1376,7 +1780,7 @@ function addBrush(g, points, scales, enc, brushConfig, markRegistry, w, h, dragS
         // work with brushing enabled.
         if (event.sourceEvent) {
           const [mx, my] = pointerXY(event.sourceEvent, g.node());
-          if (nearestPointWithin(points, scales, enc, mx, my, 12)) {
+          if (nearestElement(mx, my)) {
             // Without this, the browser's own touch-to-click synthesis
             // still fires shortly after, targeting the overlay (since it's
             // still what's topmost at that screen position); that bubbles
@@ -1388,18 +1792,19 @@ function addBrush(g, points, scales, enc, brushConfig, markRegistry, w, h, dragS
         }
         return;
       }
-      const [[x0, y0], [x1, y1]] = selection;
       const idxSet = new Set();
-      points.attr("opacity", function(d, i) {
-        const cx = scales.x(getVal(d, enc.x));
-        const cy = scales.y(getVal(d, enc.y));
-        const hit = (cx >= x0 && cx <= x1 && cy >= y0 && cy <= y1);
-        if (hit) idxSet.add(i);
-        return hit ? 1 : 0.1;
+      hitTested.forEach(entry => {
+        entry.selection.each(function(d, i) {
+          if (entry.brush.hit(d, i, this, selection)) {
+            rowsOfDatum(entry, d, i).forEach(r => idxSet.add(r));
+          }
+        });
       });
-
-      const entry = (markRegistry || []).find(e => e.selection === points);
-      if (entry && entry.emitSelection) entry.emitSelection(idxSet);
+      entries.forEach(entry => {
+        entry.selection.attr("opacity", (d, i) =>
+          entry.brush.opacity(rowsOfDatum(entry, d, i).some(r => idxSet.has(r))));
+      });
+      emitSelection(idxSet);
     });
 
   const brushG = g.append("g").attr("class", "brush").call(brush);
@@ -1479,7 +1884,7 @@ function addBrush(g, points, scales, enc, brushConfig, markRegistry, w, h, dragS
     .on("mousemove.glyph-hover-forward", function(event) {
       if (event.buttons || isSyntheticFromTouch()) return;
       const [mx, my] = pointerXY(event, g.node());
-      const nearest = nearestPointWithin(points, scales, enc, mx, my, 12);
+      const nearest = nearestElement(mx, my);
       if (nearest !== hoveredNode) {
         if (hoveredNode) hoveredNode.dispatchEvent(new MouseEvent("mouseout", { bubbles: true }));
         hoveredNode = nearest;
@@ -1526,7 +1931,7 @@ function addBrush(g, points, scales, enc, brushConfig, markRegistry, w, h, dragS
 
 // ---- Zoom -------------------------------------------------------------------
 
-function addZoom(svgNode, g, scales, enc, marks, markType, dragState) {
+function addZoom(svgNode, g, dragState) {
   const svgSel = d3.select(svgNode);
 
   // The plot group already carries the axis-margin translate. Compose the
@@ -1857,11 +2262,11 @@ function applyMorphAnimation(g, scales, spec, animConfig, data, theme, duration,
       .attr("fill", d => scales.color ? scales.color(getVal(d, enc.color)) : (theme.accent || "#4269d0"))
       .attr("stroke", "#fff")
       .attr("stroke-width", 1)
-      .attr("cx", d => scales.x ? scales.x(getVal(d, enc.x)) : 0)
+      .attr("cx", d => xPos(scales, enc, d))
       .attr("cy", d => scales.y ? scales.y(getVal(d, enc.y)) : 0)
       .merge(circles)
       .transition().duration(duration).ease(easing)
-      .attr("cx", d => scales.x ? scales.x(getVal(d, enc.x)) : 0)
+      .attr("cx", d => xPos(scales, enc, d))
       .attr("cy", d => scales.y ? scales.y(getVal(d, enc.y)) : 0)
       .attr("r", d => scales.size ? scales.size(getVal(d, enc.size)) : (style.size || 5))
       .attr("opacity", style.opacity || 0.8);
