@@ -460,11 +460,18 @@ print.glyph_spec <- function(x, ...) {
 #'
 #' @param spec A glyph_spec or glyph_compiled
 #' @param file Output file path. Extension determines format. Currently
-#'   implemented: `.html` (self-contained interactive widget) and `.json`
-#'   (the compiled spec). Other extensions (`.svg`, `.png`, `.pdf`) are
-#'   planned but not yet implemented, and currently just print a message.
+#'   implemented: `.html` (interactive widget) and `.json` (the compiled
+#'   spec). Other extensions (`.svg`, `.png`, `.pdf`) are planned but not yet
+#'   implemented, and currently just print a message.
 #' @param width Width in pixels
 #' @param height Height in pixels
+#' @details
+#' A single self-contained `.html` file needs [pandoc](https://pandoc.org).
+#' RStudio ships with pandoc, so this works out of the box there; elsewhere,
+#' install pandoc and make sure it is on your `PATH`. Without pandoc,
+#' `export()` still writes the `.html` file but puts the JavaScript it needs
+#' in a `<name>_files` folder next to it, and tells you so. Keep the two
+#' together when moving or sharing the plot.
 #' @return Invisibly returns the output file path
 #' @export
 export <- function(spec, file, width = 800, height = 600) {
@@ -479,13 +486,32 @@ export <- function(spec, file, width = 800, height = 600) {
 
   if (ext == "html") {
     widget <- render(spec, width = width, height = height)
-    htmlwidgets::saveWidget(widget, file, selfcontained = TRUE)
-    cli::cli_alert_success("Exported interactive HTML to {file}")
+    if (has_pandoc()) {
+      htmlwidgets::saveWidget(widget, file, selfcontained = TRUE)
+      cli::cli_alert_success("Exported interactive HTML to {file}")
+    } else {
+      htmlwidgets::saveWidget(widget, file, selfcontained = FALSE)
+      libdir <- paste0(tools::file_path_sans_ext(basename(file)), "_files")
+      cli::cli_inform(c(
+        "!" = "Exported interactive HTML to {.file {file}}, but not as a single self-contained file.",
+        " " = "It needs the {.file {libdir}} folder next to it; keep the two together when moving or sharing it.",
+        "i" = "Install pandoc ({.url https://pandoc.org/installing.html}) or run inside RStudio to get a single self-contained file instead."
+      ))
+    }
     return(invisible(file))
   }
 
   cli::cli_alert_info("Export to .{ext} uses the static engine (planned).")
   invisible(file)
+}
+
+#' Can a self-contained HTML file be written?
+#' @description Uses the same check as `htmlwidgets::saveWidget()`, which also
+#'   finds the copy of pandoc bundled with RStudio. A separate function so
+#'   tests can stub it.
+#' @noRd
+has_pandoc <- function() {
+  requireNamespace("rmarkdown", quietly = TRUE) && rmarkdown::pandoc_available()
 }
 
 #' Export the spec as Vega-Lite JSON (interop)

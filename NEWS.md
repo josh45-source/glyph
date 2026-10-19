@@ -1,5 +1,10 @@
 # glyph (development version)
 
+* `export()` to `.html` no longer fails on machines without pandoc (#3).
+  Instead of a low-level pandoc error, it now writes the HTML with its
+  JavaScript in a `<name>_files` folder alongside, and says so, including how
+  to get a single self-contained file (install pandoc, or run inside
+  RStudio). The pandoc requirement is now documented in `?export`.
 * Fixed the entrance/slide animation for bar charts showing no bars on
   Safari and Chrome mobile (#2). The animation was reading a value that was
   never set and had already been zeroed out, so bars always animated to
