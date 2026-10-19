@@ -51,7 +51,7 @@ HTMLWidgets.widget({
       for (let i = 0; i < 2; i++) {
         const overX = el.scrollWidth - el.clientWidth;
         const overY = el.scrollHeight - el.clientHeight;
-        if (overX <= 1 && overY <= 1) break;
+        if (overX <= 0 && overY <= 0) break;
         w = Math.max(80, w - Math.max(0, overX));
         h = Math.max(80, h - Math.max(0, overY));
         draw(w, h);
