@@ -15,13 +15,6 @@ glyph’s D3 renderer. They are live, so you can hover, click, brush and
 zoom them. All the examples use `mtcars`, which means you can paste them
 into R and get the same result.
 
-At the console, a plot draws itself when printed. A vignette runs its
-code non-interactively, and there printing a plot only gives a one-line
-summary. So each example here ends with
-[`render()`](https://josh45-source.github.io/glyph/reference/render.html),
-which builds the widget directly. In your own session you can leave it
-off unless you want to set the width and height.
-
 ## 1. Tooltips and hover
 
 [`interact()`](https://josh45-source.github.io/glyph/reference/interact.html)
@@ -35,8 +28,7 @@ adds a title in the same pipeline.
 glyph(mtcars, x = wt, y = mpg) |>
   mark_point(color = cyl) |>
   interact(tooltip = TRUE, hover = "enlarge") |>
-  titles(title = "Motor Trend Cars") |>
-  render()
+  titles(title = "Motor Trend Cars")
 ```
 
 Move the mouse over a point to enlarge it, and rest on it to see the
@@ -52,8 +44,7 @@ little after the one before, so they draw in sequence.
 
 glyph(mtcars, x = cyl, y = mpg) |>
   mark_bar() |>
-  animate(transition = "slide", stagger = 50) |>
-  render()
+  animate(transition = "slide", stagger = 50)
 ```
 
 Reload the page, or run the chunk again in R, to watch the bars slide
@@ -73,8 +64,7 @@ glyph(mtcars, x = wt, y = mpg) |>
   mark_point(color = cyl) |>
   interact(tooltip = TRUE) |>
   theme_tokens(preset = "dark") |>
-  titles(title = "Dark Theme Example") |>
-  render()
+  titles(title = "Dark Theme Example")
 ```
 
 ## 4. Labels that avoid each other
@@ -90,8 +80,7 @@ mtcars_named <- data.frame(model = rownames(mtcars), mtcars, row.names = NULL)
 
 glyph(mtcars_named, x = wt, y = mpg) |>
   mark_point(color = cyl) |>
-  mark_text(label = model, smart_repel = TRUE) |>
-  render()
+  mark_text(label = model, smart_repel = TRUE)
 ```
 
 ## 5. Linked panels
@@ -111,8 +100,7 @@ p2 <- glyph(mtcars, x = hp, y = mpg) |>
   mark_point(color = cyl) |>
   interact(brush = TRUE)
 
-compose(p1, p2, type = "hstack", linked_selections = TRUE) |>
-  render()
+compose(p1, p2, type = "hstack", linked_selections = TRUE)
 ```
 
 Drag a rectangle over a few points in either panel. The same cars light
@@ -128,8 +116,7 @@ rows, by columns or by both.
 
 glyph(mtcars, x = wt, y = mpg) |>
   mark_point(color = cyl) |>
-  facet(cols = cyl) |>
-  render()
+  facet(cols = cyl)
 ```
 
 ## 7. Marginal distributions
@@ -142,8 +129,7 @@ draws the distribution of each axis along its edge. The choices are
 
 glyph(mtcars, x = wt, y = mpg) |>
   mark_point(color = cyl) |>
-  marginals(x = "histogram", y = "density") |>
-  render()
+  marginals(x = "histogram", y = "density")
 ```
 
 ## 8. Inset plots
@@ -157,8 +143,7 @@ detail view or a second breakdown of the same data.
 main_plot <- glyph(mtcars, x = wt, y = mpg) |> mark_point(color = cyl)
 detail_plot <- glyph(mtcars, x = cyl, y = mpg) |> mark_bar()
 
-inset(main_plot, detail_plot, position = "top-right") |>
-  render()
+inset(main_plot, detail_plot, position = "top-right")
 ```
 
 ## 9. Moving between groups
@@ -170,8 +155,7 @@ a time. When the group changes, each mark moves to its new position.
 
 glyph(mtcars, x = wt, y = mpg) |>
   mark_point(size = hp, color = cyl) |>
-  animate(by = gear, transition = "morph", duration = 800) |>
-  render()
+  animate(by = gear, transition = "morph", duration = 800)
 ```
 
 Use the play/pause button to step through the `gear` groups.

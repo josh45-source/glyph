@@ -24,11 +24,10 @@ glyph(mtcars, x = wt, y = mpg) |>
 
 Each step adds to a specification, a plain R list that describes the
 whole plot. When the plot is printed, glyph compiles the spec to JSON
-and draws it in the browser with D3.js. In an interactive session that
-happens on its own; call
+and draws it in the browser with D3.js. That happens at the console and
+in R Markdown, Quarto and vignettes alike. Call
 [`render()`](https://josh45-source.github.io/glyph/reference/render.md)
-when you want to set the width and height, or when the code runs in R
-Markdown or a vignette.
+only when you want to set the width and height.
 
 ## What goes in the spec
 

@@ -2,6 +2,18 @@
 
 ## glyph (development version)
 
+- Plots and layouts now draw automatically in R Markdown, Quarto and
+  vignettes, without ending the pipeline with
+  [`render()`](https://josh45-source.github.io/glyph/reference/render.md)
+  ([\#13](https://github.com/josh45-source/glyph/issues/13)). glyph
+  registers `knit_print()` methods for `glyph_spec` and `glyph_layout`;
+  knitr stays a suggested package. Printing a
+  [`compose()`](https://josh45-source.github.io/glyph/reference/compose.md)
+  layout at the console now draws it, the same as a single plot, and the
+  text description it used to print is available from the new
+  [`summary.glyph_layout()`](https://josh45-source.github.io/glyph/reference/summary.glyph_layout.md).
+  [`render()`](https://josh45-source.github.io/glyph/reference/render.md)
+  is still there for setting the width and height.
 - Rewrote the README, the pkgdown home page, `ARCHITECTURE.md` and the
   Getting Started vignette in plainer language
   ([\#4](https://github.com/josh45-source/glyph/issues/4)).
