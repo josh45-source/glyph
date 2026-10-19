@@ -72,9 +72,9 @@ large-data export backends. Planned, not yet implemented.</p></li>
 
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>Key architectural difference from ggplot2: the spec is a pure data
-structure. The <code><a href="compile.html">compile()</a></code> step resolves it into a concrete render tree.
-This means you can:</p><ul><li><p>Inspect the compiled spec as JSON (for debugging or export)</p></li>
+    <p>A glyph spec is a plain data structure, and nothing is drawn until the
+<code><a href="compile.html">compile()</a></code> step resolves it into a concrete render tree. That means you
+can:</p><ul><li><p>Inspect the compiled spec as JSON (for debugging or export)</p></li>
 <li><p>Serialize it and render on a different machine</p></li>
 <li><p>Export it to Vega-Lite JSON (near 1:1 mapping)</p></li>
 <li><p>Add new backends later without changing the user-facing spec API</p></li>

@@ -9,6 +9,18 @@
   the comparison tables in the README and the “glyph vs ggplot2”
   vignette. The package Title and Description now describe what glyph
   does ([\#5](https://github.com/josh45-source/glyph/issues/5)).
+- The help pages no longer compare glyph with other packages either, and
+  several now describe the code more accurately.
+  [`?glyph`](https://josh45-source.github.io/glyph/reference/glyph.md)
+  no longer claims that lists, URLs or Arrow tables are accepted as
+  data,
+  [`?facet`](https://josh45-source.github.io/glyph/reference/facet.md)
+  no longer says panels get independent scales by default, and
+  [`?marks`](https://josh45-source.github.io/glyph/reference/marks.md)
+  and
+  [`?interactivity`](https://josh45-source.github.io/glyph/reference/interactivity.md)
+  drop features that don’t exist
+  ([\#5](https://github.com/josh45-source/glyph/issues/5)).
 - [`export()`](https://josh45-source.github.io/glyph/reference/export.md)
   to `.html` no longer fails on machines without pandoc
   ([\#3](https://github.com/josh45-source/glyph/issues/3)). Instead of a

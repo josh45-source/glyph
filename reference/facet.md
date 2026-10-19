@@ -1,8 +1,9 @@
 # Facet a plot by one or two variables
 
-Like ggplot2's facet_wrap/facet_grid but with a key improvement: each
-facet can have independent geom parameters and scales by default
-(instead of forced uniformity).
+Splits a plot into small multiples, one panel for each value of `rows`,
+`cols`, or both. Panels share their axes unless `free_scales` lets them
+vary. With a single faceting variable, `wrap` sets how many panels go in
+each row.
 
 ## Usage
 

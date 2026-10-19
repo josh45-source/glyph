@@ -83,7 +83,7 @@ Build and inspect the visualization spec.
 - [`glyph()`](https://josh45-source.github.io/glyph/reference/glyph.md)
   : Create a Glyph Visualization
 - [`print(`*`<glyph_spec>`*`)`](https://josh45-source.github.io/glyph/reference/print.glyph_spec.md)
-  : Auto-render when printed (like ggplot2)
+  : Draw a glyph spec when it is printed
 - [`summary(`*`<glyph_spec>`*`)`](https://josh45-source.github.io/glyph/reference/summary.glyph_spec.md)
   : Summarize a glyph specification
 
@@ -115,7 +115,7 @@ Geometric layers that draw data onto the plot.
 Tooltips, zoom, brushing, and linked selections.
 
 - [`interactivity`](https://josh45-source.github.io/glyph/reference/interactivity.md)
-  : First-Class Interactivity
+  : Interactivity
 - [`interact()`](https://josh45-source.github.io/glyph/reference/interact.md)
   : Add interactive behaviors to a glyph spec
 - [`selection()`](https://josh45-source.github.io/glyph/reference/selection.md)

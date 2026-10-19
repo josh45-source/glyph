@@ -1,9 +1,12 @@
-# First-Class Interactivity
+# Interactivity
 
-Unlike ggplot2 where interactivity is bolted on via ggplotly(), glyph
-treats interaction as part of the visualization grammar. Interactions
-are declared in the spec and compiled to the appropriate backend (D3
-events for HTML, Shiny bindings for server-side).
+Tooltips, hover effects, clicks, zoom, brushing and linked selections
+are part of the plot specification. They are declared with
+[`interact()`](https://josh45-source.github.io/glyph/reference/interact.md)
+and
+[`selection()`](https://josh45-source.github.io/glyph/reference/selection.md)
+in the same pipeline as the marks, stored in the spec, and run in the
+browser by the D3 renderer.
 
 ## Details
 
