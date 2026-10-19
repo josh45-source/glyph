@@ -32,29 +32,50 @@ HTMLWidgets.widget({
       }
     };
 
+    // Draws the plot at the size of the container it is actually in. Using the
+    // spec's own width and height (600 x 400 unless set) instead made the SVG,
+    // which fills the container's width and keeps the spec's aspect ratio,
+    // taller than a wide, short container such as RStudio's Viewer pane, so
+    // its x axis was cut off (#17). When the container has no size yet (e.g.
+    // it is hidden), fall back to the spec's size.
     function doRender(x) {
       spec = x.spec;
+      const box = el.getBoundingClientRect();
+      let w = Math.floor(box.width) || spec.width || width || 600;
+      let h = Math.floor(box.height) || spec.height || height || 400;
+      draw(w, h);
+
+      // Anything drawn outside the SVG (a layout title, facet labels, the
+      // keyframe play/pause button) takes space too. If the content still
+      // overflows the container, redraw smaller by the overflow.
+      for (let i = 0; i < 2; i++) {
+        const overX = el.scrollWidth - el.clientWidth;
+        const overY = el.scrollHeight - el.clientHeight;
+        if (overX <= 1 && overY <= 1) break;
+        w = Math.max(80, w - Math.max(0, overX));
+        h = Math.max(80, h - Math.max(0, overY));
+        draw(w, h);
+      }
+    }
+
+    function draw(w, h) {
       el.innerHTML = "";
 
       if (spec.type === "layout") {
         el.style.background = "transparent";
-        renderLayout(el, spec, spec.width || width || 600, spec.height || height || 400);
+        renderLayout(el, spec, w, h);
         return;
       }
 
       if (spec.facets && (spec.facets.cols || spec.facets.rows)) {
         el.style.background = "transparent";
-        renderFacets(el, spec, spec.width || width || 600, spec.height || height || 400);
+        renderFacets(el, spec, w, h);
         return;
       }
 
       const theme = spec.theme || {};
       el.style.background = theme.bg || "#fff";
-      renderSpecInto(el, spec, {
-        width: spec.width || width || 600,
-        height: spec.height || height || 400,
-        standalone: true
-      });
+      renderSpecInto(el, spec, { width: w, height: h, standalone: true });
     }
   }
 });
