@@ -34,9 +34,9 @@ spec <- glyph(mtcars, x = wt, y = mpg) |>
   mark_point()
 summary(spec)
 #> 
-#> ── Glyph Specification ─────────────────────────────────────────────────────────
-#> • Data: 32 x 11
-#> • Marks: 1
-#> • Interactions: 0
-#> • Animated: FALSE
+#> -- Glyph Specification ---------------------------------------------------------
+#> * Data: 32 x 11
+#> * Marks: 1
+#> * Interactions: 0
+#> * Animated: FALSE
 ```

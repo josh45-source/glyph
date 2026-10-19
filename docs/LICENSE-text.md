@@ -1,4 +1,4 @@
 # License
 
-    YEAR: 2026
-    COPYRIGHT HOLDER: Joash Joshua Ayo
+YEAR: 2026\
+COPYRIGHT HOLDER: Joash Joshua Ayo\

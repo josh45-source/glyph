@@ -1,5 +1,10 @@
 # glyph (development version)
 
+* Rewrote the README, the pkgdown home page, `ARCHITECTURE.md` and the
+  Getting Started vignette in plainer language (#4).
+* Removed the comparisons with ggplot2 from the documentation, including the
+  comparison tables in the README and the "glyph vs ggplot2" vignette. The
+  package Title and Description now describe what glyph does (#5).
 * `export()` to `.html` no longer fails on machines without pandoc (#3).
   Instead of a low-level pandoc error, it now writes the HTML with its
   JavaScript in a `<name>_files` folder alongside, and says so, including how

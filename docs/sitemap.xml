@@ -1,12 +1,11 @@
 <urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
 <url><loc>https://josh45-source.github.io/glyph/404.html</loc></url>
 <url><loc>https://josh45-source.github.io/glyph/ARCHITECTURE.html</loc></url>
-<url><loc>https://josh45-source.github.io/glyph/articles/comparison.html</loc></url>
+<url><loc>https://josh45-source.github.io/glyph/LICENSE-text.html</loc></url>
 <url><loc>https://josh45-source.github.io/glyph/articles/getting-started.html</loc></url>
 <url><loc>https://josh45-source.github.io/glyph/articles/index.html</loc></url>
 <url><loc>https://josh45-source.github.io/glyph/authors.html</loc></url>
 <url><loc>https://josh45-source.github.io/glyph/index.html</loc></url>
-<url><loc>https://josh45-source.github.io/glyph/LICENSE-text.html</loc></url>
 <url><loc>https://josh45-source.github.io/glyph/news/index.html</loc></url>
 <url><loc>https://josh45-source.github.io/glyph/reference/animate.html</loc></url>
 <url><loc>https://josh45-source.github.io/glyph/reference/animation.html</loc></url>
@@ -22,7 +21,6 @@
 <url><loc>https://josh45-source.github.io/glyph/reference/interactivity.html</loc></url>
 <url><loc>https://josh45-source.github.io/glyph/reference/layout.html</loc></url>
 <url><loc>https://josh45-source.github.io/glyph/reference/marginals.html</loc></url>
-<url><loc>https://josh45-source.github.io/glyph/reference/marks.html</loc></url>
 <url><loc>https://josh45-source.github.io/glyph/reference/mark_area.html</loc></url>
 <url><loc>https://josh45-source.github.io/glyph/reference/mark_bar.html</loc></url>
 <url><loc>https://josh45-source.github.io/glyph/reference/mark_line.html</loc></url>
@@ -31,6 +29,7 @@
 <url><loc>https://josh45-source.github.io/glyph/reference/mark_ribbon.html</loc></url>
 <url><loc>https://josh45-source.github.io/glyph/reference/mark_rule.html</loc></url>
 <url><loc>https://josh45-source.github.io/glyph/reference/mark_text.html</loc></url>
+<url><loc>https://josh45-source.github.io/glyph/reference/marks.html</loc></url>
 <url><loc>https://josh45-source.github.io/glyph/reference/print.glyph_layout.html</loc></url>
 <url><loc>https://josh45-source.github.io/glyph/reference/print.glyph_spec.html</loc></url>
 <url><loc>https://josh45-source.github.io/glyph/reference/render.html</loc></url>

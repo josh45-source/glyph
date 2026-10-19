@@ -13,10 +13,11 @@ template:
       card: summary_large_image
 
 home:
-  title: "glyph: A Next-Generation Grammar of Interactive Graphics"
+  title: "glyph: A Grammar of Interactive Graphics"
   description: >
-    A modern visualization grammar for R that treats interactivity, animation,
-    and composable layouts as first-class concepts — not afterthoughts.
+    An R package that builds interactive plots from a declarative spec and
+    draws them with D3. Tooltips, zoom, brushing, animation and multi-plot
+    layouts are declared in the same pipeline as the marks.
   sidebar:
     structure: [links, license, community, citation, authors, dev]
 
@@ -30,8 +31,6 @@ navbar:
       menu:
       - text: "Getting Started"
         href: articles/getting-started.html
-      - text: "glyph vs ggplot2: Side-by-Side Comparison"
-        href: articles/comparison.html
     github:
       icon: fa-github
       href: https://github.com/josh45-source/glyph
@@ -105,7 +104,6 @@ articles:
   navbar: ~
   contents:
   - getting-started
-  - comparison
 
 footer:
   structure:

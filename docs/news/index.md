@@ -2,6 +2,21 @@
 
 ## glyph (development version)
 
+- Rewrote the README, the pkgdown home page, `ARCHITECTURE.md` and the
+  Getting Started vignette in plainer language
+  ([\#4](https://github.com/josh45-source/glyph/issues/4)).
+- Removed the comparisons with ggplot2 from the documentation, including
+  the comparison tables in the README and the “glyph vs ggplot2”
+  vignette. The package Title and Description now describe what glyph
+  does ([\#5](https://github.com/josh45-source/glyph/issues/5)).
+- [`export()`](https://josh45-source.github.io/glyph/reference/export.md)
+  to `.html` no longer fails on machines without pandoc
+  ([\#3](https://github.com/josh45-source/glyph/issues/3)). Instead of a
+  low-level pandoc error, it now writes the HTML with its JavaScript in
+  a `<name>_files` folder alongside, and says so, including how to get a
+  single self-contained file (install pandoc, or run inside RStudio).
+  The pandoc requirement is now documented in
+  [`?export`](https://josh45-source.github.io/glyph/reference/export.md).
 - Fixed the entrance/slide animation for bar charts showing no bars on
   Safari and Chrome mobile
   ([\#2](https://github.com/josh45-source/glyph/issues/2)). The
@@ -115,8 +130,8 @@ CRAN release: 2026-07-08
 CRAN release: 2026-07-06
 
 - Initial CRAN release.
-- Core spec builder with quosure-based aesthetic mappings (no
-  [`aes()`](https://ggplot2.tidyverse.org/reference/aes.html) required).
+- Core spec builder with quosure-based aesthetic mappings (no `aes()`
+  required).
 - Eight mark types:
   [`mark_point()`](https://josh45-source.github.io/glyph/reference/mark_point.md),
   [`mark_line()`](https://josh45-source.github.io/glyph/reference/mark_line.md),
