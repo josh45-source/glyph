@@ -437,19 +437,23 @@ render <- function(spec, width = NULL, height = NULL) {
 
 #' Draw a glyph spec when it is printed
 #'
-#' @description In an interactive session, printing a spec renders it as an
-#'   htmlwidget, so a plot appears without calling [render()]. In a
-#'   non-interactive session, including R Markdown, Quarto and vignettes,
-#'   it prints a one-line summary instead; end the pipeline with [render()]
-#'   there.
+#' @description A printed spec draws itself. At the console it opens in the
+#'   viewer, and in R Markdown, Quarto and vignettes it is embedded in the
+#'   document. Call [render()] only to set the width and height, and use
+#'   [summary()][summary.glyph_spec] for a text description.
+#'
+#'   In a non-interactive session that isn't knitting a document, such as
+#'   `Rscript`, there is nowhere to draw, so printing gives a one-line
+#'   description instead.
 #' @param x A glyph_spec object
-#' @param ... Additional arguments (ignored)
-#' @return Invisibly returns the glyph_spec object
+#' @param ... Passed on to knitr when knitting; otherwise ignored.
+#' @param options knitr chunk options, supplied by knitr.
+#' @return `print()` invisibly returns `x`. `knit_print()` returns the
+#'   rendered widget's HTML for knitr to include in the document.
 #' @export
 print.glyph_spec <- function(x, ...) {
-  if (base::interactive()) {
-    widget <- render(x)
-    print(widget)
+  if (is_interactive()) {
+    print(render(x))
   } else {
     n_marks <- length(x$marks)
     data_desc <- if (is.null(x$data)) {
@@ -460,6 +464,19 @@ print.glyph_spec <- function(x, ...) {
     cat(sprintf("<glyph_spec: %s, %d mark(s)>\n", data_desc, n_marks))
   }
   invisible(x)
+}
+
+#' @rdname print.glyph_spec
+#' @exportS3Method knitr::knit_print
+knit_print.glyph_spec <- function(x, ..., options = NULL) {
+  knitr::knit_print(render(x), ..., options = options)
+}
+
+#' Is this an interactive session?
+#' @description A wrapper around [interactive()] so tests can stub it.
+#' @noRd
+is_interactive <- function() {
+  interactive()
 }
 
 #' Export to various formats

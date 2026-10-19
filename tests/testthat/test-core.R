@@ -457,6 +457,71 @@ test_that("summary.glyph_spec works", {
   expect_no_error(summary(spec))
 })
 
+test_that("summary.glyph_layout works", {
+  p <- glyph(mtcars, x = wt, y = mpg) |> mark_point()
+  layout <- compose(p, p, linked_selections = TRUE)
+  expect_no_error(summary(layout))
+  expect_identical(suppressMessages(summary(layout)), layout)
+})
+
+test_that("print() gives a one-line description outside an interactive session", {
+  local_mocked_bindings(is_interactive = function() FALSE)
+  p <- glyph(mtcars, x = wt, y = mpg) |> mark_point()
+  expect_output(print(p), "<glyph_spec: 32 x 11, 1 mark(s)>", fixed = TRUE)
+  expect_output(print(compose(p, p)), "<glyph_layout: hstack, 2 panel(s)>",
+                fixed = TRUE)
+})
+
+test_that("print() draws specs and layouts in an interactive session", {
+  local_mocked_bindings(is_interactive = function() TRUE)
+  rendered <- list()
+  real_render <- render
+  local_mocked_bindings(render = function(spec, ...) {
+    rendered[[length(rendered) + 1]] <<- spec
+    real_render(spec, ...)
+  })
+  # Don't open a viewer if the tests are run from an interactive session.
+  old <- options(viewer = function(url, ...) invisible(NULL))
+  on.exit(options(old), add = TRUE)
+
+  p <- glyph(mtcars, x = wt, y = mpg) |> mark_point()
+  layout <- compose(p, p)
+  expect_silent(print(p))
+  expect_silent(print(layout))
+  expect_length(rendered, 2)
+  expect_s3_class(rendered[[1]], "glyph_spec")
+  expect_s3_class(rendered[[2]], "glyph_layout")
+})
+
+test_that("knit_print() embeds a glyph_spec as a widget", {
+  skip_if_not_installed("knitr")
+  # Outside a real knit, knitr assumes non-HTML output and would try to take
+  # a screenshot of the widget. Tell it the document is HTML, as it is when
+  # an HTML document is knitted.
+  old <- knitr::opts_knit$get("rmarkdown.pandoc.to")
+  knitr::opts_knit$set(rmarkdown.pandoc.to = "html")
+  on.exit(knitr::opts_knit$set(rmarkdown.pandoc.to = old), add = TRUE)
+  p <- glyph(mtcars, x = wt, y = mpg) |> mark_point()
+  out <- knitr::knit_print(p)
+  expect_s3_class(out, "knit_asis")
+  expect_match(out, "glyph html-widget", fixed = TRUE)
+  dep_names <- vapply(attr(out, "knit_meta"), function(d) d$name, "")
+  expect_true("glyph-binding" %in% dep_names)
+})
+
+test_that("knit_print() embeds a glyph_layout as a widget", {
+  skip_if_not_installed("knitr")
+  # See the glyph_spec test above.
+  old <- knitr::opts_knit$get("rmarkdown.pandoc.to")
+  knitr::opts_knit$set(rmarkdown.pandoc.to = "html")
+  on.exit(knitr::opts_knit$set(rmarkdown.pandoc.to = old), add = TRUE)
+  p <- glyph(mtcars, x = wt, y = mpg) |> mark_point()
+  out <- knitr::knit_print(compose(p, p, type = "vstack"))
+  expect_s3_class(out, "knit_asis")
+  expect_match(out, "glyph html-widget", fixed = TRUE)
+  expect_match(out, "vstack", fixed = TRUE)
+})
+
 test_that("full pipeline: spec -> compile -> JSON round-trip", {
   spec <- glyph(mtcars, x = wt, y = mpg) |>
     mark_point(color = cyl, size = hp) |>

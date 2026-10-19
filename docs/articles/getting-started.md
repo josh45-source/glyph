@@ -13,13 +13,6 @@ glyph’s D3 renderer. They are live, so you can hover, click, brush and
 zoom them. All the examples use `mtcars`, which means you can paste them
 into R and get the same result.
 
-At the console, a plot draws itself when printed. A vignette runs its
-code non-interactively, and there printing a plot only gives a one-line
-summary. So each example here ends with
-[`render()`](https://josh45-source.github.io/glyph/reference/render.html),
-which builds the widget directly. In your own session you can leave it
-off unless you want to set the width and height.
-
 ## 1. Tooltips and hover
 
 [`interact()`](https://josh45-source.github.io/glyph/reference/interact.html)
@@ -32,8 +25,7 @@ adds a title in the same pipeline.
 [`glyph`](https://josh45-source.github.io/glyph/reference/glyph.md)`(``mtcars``, x ``=`` ``wt``, y ``=`` ``mpg``)`` ``|>`\
 `  `[`mark_point`](https://josh45-source.github.io/glyph/reference/mark_point.md)`(``color ``=`` ``cyl``)`` ``|>`\
 `  `[`interact`](https://josh45-source.github.io/glyph/reference/interact.md)`(``tooltip ``=`` ``TRUE``, hover ``=`` ``"enlarge"``)`` ``|>`\
-`  `[`titles`](https://josh45-source.github.io/glyph/reference/titles.md)`(``title ``=`` ``"Motor Trend Cars"``)`` ``|>`\
-`  `[`render`](https://josh45-source.github.io/glyph/reference/render.md)`(``)`
+`  `[`titles`](https://josh45-source.github.io/glyph/reference/titles.md)`(``title ``=`` ``"Motor Trend Cars"``)`
 
 Move the mouse over a point to enlarge it, and rest on it to see the
 tooltip.
@@ -47,8 +39,7 @@ little after the one before, so they draw in sequence.
 \
 [`glyph`](https://josh45-source.github.io/glyph/reference/glyph.md)`(``mtcars``, x ``=`` ``cyl``, y ``=`` ``mpg``)`` ``|>`\
 `  `[`mark_bar`](https://josh45-source.github.io/glyph/reference/mark_bar.md)`(``)`` ``|>`\
-`  `[`animate`](https://josh45-source.github.io/glyph/reference/animate.md)`(``transition ``=`` ``"slide"``, stagger ``=`` ``50``)`` ``|>`\
-`  `[`render`](https://josh45-source.github.io/glyph/reference/render.md)`(``)`
+`  `[`animate`](https://josh45-source.github.io/glyph/reference/animate.md)`(``transition ``=`` ``"slide"``, stagger ``=`` ``50``)`
 
 Reload the page, or run the chunk again in R, to watch the bars slide
 in.
@@ -66,8 +57,7 @@ background so they stay readable.
 `  `[`mark_point`](https://josh45-source.github.io/glyph/reference/mark_point.md)`(``color ``=`` ``cyl``)`` ``|>`\
 `  `[`interact`](https://josh45-source.github.io/glyph/reference/interact.md)`(``tooltip ``=`` ``TRUE``)`` ``|>`\
 `  `[`theme_tokens`](https://josh45-source.github.io/glyph/reference/theme_tokens.md)`(``preset ``=`` ``"dark"``)`` ``|>`\
-`  `[`titles`](https://josh45-source.github.io/glyph/reference/titles.md)`(``title ``=`` ``"Dark Theme Example"``)`` ``|>`\
-`  `[`render`](https://josh45-source.github.io/glyph/reference/render.md)`(``)`
+`  `[`titles`](https://josh45-source.github.io/glyph/reference/titles.md)`(``title ``=`` ``"Dark Theme Example"``)`
 
 ## 4. Labels that avoid each other
 
@@ -81,8 +71,7 @@ first line copies them into a column.
 \
 [`glyph`](https://josh45-source.github.io/glyph/reference/glyph.md)`(``mtcars_named``, x ``=`` ``wt``, y ``=`` ``mpg``)`` ``|>`\
 `  `[`mark_point`](https://josh45-source.github.io/glyph/reference/mark_point.md)`(``color ``=`` ``cyl``)`` ``|>`\
-`  `[`mark_text`](https://josh45-source.github.io/glyph/reference/mark_text.md)`(``label ``=`` ``model``, smart_repel ``=`` ``TRUE``)`` ``|>`\
-`  `[`render`](https://josh45-source.github.io/glyph/reference/render.md)`(``)`
+`  `[`mark_text`](https://josh45-source.github.io/glyph/reference/mark_text.md)`(``label ``=`` ``model``, smart_repel ``=`` ``TRUE``)`
 
 ## 5. Linked panels
 
@@ -100,8 +89,7 @@ panel are highlighted in the other.
 `  `[`mark_point`](https://josh45-source.github.io/glyph/reference/mark_point.md)`(``color ``=`` ``cyl``)`` ``|>`\
 `  `[`interact`](https://josh45-source.github.io/glyph/reference/interact.md)`(``brush ``=`` ``TRUE``)`\
 \
-[`compose`](https://josh45-source.github.io/glyph/reference/compose.md)`(``p1``, ``p2``, type ``=`` ``"hstack"``, linked_selections ``=`` ``TRUE``)`` ``|>`\
-`  `[`render`](https://josh45-source.github.io/glyph/reference/render.md)`(``)`
+[`compose`](https://josh45-source.github.io/glyph/reference/compose.md)`(``p1``, ``p2``, type ``=`` ``"hstack"``, linked_selections ``=`` ``TRUE``)`
 
 Drag a rectangle over a few points in either panel. The same cars light
 up in both.
@@ -115,8 +103,7 @@ rows, by columns or by both.
 \
 [`glyph`](https://josh45-source.github.io/glyph/reference/glyph.md)`(``mtcars``, x ``=`` ``wt``, y ``=`` ``mpg``)`` ``|>`\
 `  `[`mark_point`](https://josh45-source.github.io/glyph/reference/mark_point.md)`(``color ``=`` ``cyl``)`` ``|>`\
-`  `[`facet`](https://josh45-source.github.io/glyph/reference/facet.md)`(``cols ``=`` ``cyl``)`` ``|>`\
-`  `[`render`](https://josh45-source.github.io/glyph/reference/render.md)`(``)`
+`  `[`facet`](https://josh45-source.github.io/glyph/reference/facet.md)`(``cols ``=`` ``cyl``)`
 
 ## 7. Marginal distributions
 
@@ -127,8 +114,7 @@ draws the distribution of each axis along its edge. The choices are
 \
 [`glyph`](https://josh45-source.github.io/glyph/reference/glyph.md)`(``mtcars``, x ``=`` ``wt``, y ``=`` ``mpg``)`` ``|>`\
 `  `[`mark_point`](https://josh45-source.github.io/glyph/reference/mark_point.md)`(``color ``=`` ``cyl``)`` ``|>`\
-`  `[`marginals`](https://josh45-source.github.io/glyph/reference/marginals.md)`(``x ``=`` ``"histogram"``, y ``=`` ``"density"``)`` ``|>`\
-`  `[`render`](https://josh45-source.github.io/glyph/reference/render.md)`(``)`
+`  `[`marginals`](https://josh45-source.github.io/glyph/reference/marginals.md)`(``x ``=`` ``"histogram"``, y ``=`` ``"density"``)`
 
 ## 8. Inset plots
 
@@ -140,8 +126,7 @@ detail view or a second breakdown of the same data.
 `main_plot`` ``<-`` `[`glyph`](https://josh45-source.github.io/glyph/reference/glyph.md)`(``mtcars``, x ``=`` ``wt``, y ``=`` ``mpg``)`` ``|>`` `[`mark_point`](https://josh45-source.github.io/glyph/reference/mark_point.md)`(``color ``=`` ``cyl``)`\
 `detail_plot`` ``<-`` `[`glyph`](https://josh45-source.github.io/glyph/reference/glyph.md)`(``mtcars``, x ``=`` ``cyl``, y ``=`` ``mpg``)`` ``|>`` `[`mark_bar`](https://josh45-source.github.io/glyph/reference/mark_bar.md)`(``)`\
 \
-[`inset`](https://josh45-source.github.io/glyph/reference/inset.md)`(``main_plot``, ``detail_plot``, position ``=`` ``"top-right"``)`` ``|>`\
-`  `[`render`](https://josh45-source.github.io/glyph/reference/render.md)`(``)`
+[`inset`](https://josh45-source.github.io/glyph/reference/inset.md)`(``main_plot``, ``detail_plot``, position ``=`` ``"top-right"``)`
 
 ## 9. Moving between groups
 
@@ -151,8 +136,7 @@ a time. When the group changes, each mark moves to its new position.
 \
 [`glyph`](https://josh45-source.github.io/glyph/reference/glyph.md)`(``mtcars``, x ``=`` ``wt``, y ``=`` ``mpg``)`` ``|>`\
 `  `[`mark_point`](https://josh45-source.github.io/glyph/reference/mark_point.md)`(``size ``=`` ``hp``, color ``=`` ``cyl``)`` ``|>`\
-`  `[`animate`](https://josh45-source.github.io/glyph/reference/animate.md)`(``by ``=`` ``gear``, transition ``=`` ``"morph"``, duration ``=`` ``800``)`` ``|>`\
-`  `[`render`](https://josh45-source.github.io/glyph/reference/render.md)`(``)`
+`  `[`animate`](https://josh45-source.github.io/glyph/reference/animate.md)`(``by ``=`` ``gear``, transition ``=`` ``"morph"``, duration ``=`` ``800``)`
 
 Use the play/pause button to step through the `gear` groups.
 

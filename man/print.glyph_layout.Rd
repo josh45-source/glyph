@@ -2,18 +2,32 @@
 % Please edit documentation in R/layout.R
 \name{print.glyph_layout}
 \alias{print.glyph_layout}
-\title{Print a glyph layout}
+\alias{knit_print.glyph_layout}
+\title{Draw a glyph layout when it is printed}
 \usage{
 \method{print}{glyph_layout}(x, ...)
+
+\method{knit_print}{glyph_layout}(x, ..., options = NULL)
 }
 \arguments{
 \item{x}{A glyph_layout object}
 
-\item{...}{Additional arguments (ignored)}
+\item{...}{Passed on to knitr when knitting; otherwise ignored.}
+
+\item{options}{knitr chunk options, supplied by knitr.}
 }
 \value{
-Invisibly returns the \code{glyph_layout} object
+\code{print()} invisibly returns \code{x}. \code{knit_print()} returns the
+rendered widget's HTML for knitr to include in the document.
 }
 \description{
-Print a glyph layout
+A printed layout draws itself, the same way a single plot
+does. At the console it opens in the viewer, and in R Markdown, Quarto
+and vignettes it is embedded in the document. Call \code{\link[=render]{render()}} only to
+set the width and height, and use \link[=summary.glyph_layout]{summary()}
+for a text description.
+
+In a non-interactive session that isn't knitting a document, such as
+\code{Rscript}, there is nowhere to draw, so printing gives a one-line
+description instead.
 }

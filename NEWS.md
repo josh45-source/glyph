@@ -1,5 +1,12 @@
 # glyph (development version)
 
+* Plots and layouts now draw automatically in R Markdown, Quarto and
+  vignettes, without ending the pipeline with `render()` (#13). glyph
+  registers `knit_print()` methods for `glyph_spec` and `glyph_layout`;
+  knitr stays a suggested package. Printing a `compose()` layout at the
+  console now draws it, the same as a single plot, and the text description
+  it used to print is available from the new `summary.glyph_layout()`.
+  `render()` is still there for setting the width and height.
 * Rewrote the README, the pkgdown home page, `ARCHITECTURE.md` and the
   Getting Started vignette in plainer language (#4).
 * Removed the comparisons with ggplot2 from the documentation, including the

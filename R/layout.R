@@ -155,19 +155,51 @@ facet <- function(spec, rows = NULL, cols = NULL,
   spec
 }
 
-#' Print a glyph layout
+#' Draw a glyph layout when it is printed
 #'
+#' @description A printed layout draws itself, the same way a single plot
+#'   does. At the console it opens in the viewer, and in R Markdown, Quarto
+#'   and vignettes it is embedded in the document. Call [render()] only to
+#'   set the width and height, and use [summary()][summary.glyph_layout]
+#'   for a text description.
+#'
+#'   In a non-interactive session that isn't knitting a document, such as
+#'   `Rscript`, there is nowhere to draw, so printing gives a one-line
+#'   description instead.
 #' @param x A glyph_layout object
-#' @param ... Additional arguments (ignored)
-#' @return Invisibly returns the \code{glyph_layout} object
+#' @param ... Passed on to knitr when knitting; otherwise ignored.
+#' @param options knitr chunk options, supplied by knitr.
+#' @return `print()` invisibly returns `x`. `knit_print()` returns the
+#'   rendered widget's HTML for knitr to include in the document.
 #' @export
 print.glyph_layout <- function(x, ...) {
-  n <- length(x$plots)
+  if (is_interactive()) {
+    print(render(x))
+  } else {
+    cat(sprintf("<glyph_layout: %s, %d panel(s)>\n", x$type, length(x$plots)))
+  }
+  invisible(x)
+}
+
+#' @rdname print.glyph_layout
+#' @exportS3Method knitr::knit_print
+knit_print.glyph_layout <- function(x, ..., options = NULL) {
+  knitr::knit_print(render(x), ..., options = options)
+}
+
+#' Summarize a glyph layout
+#'
+#' @param object A glyph_layout object
+#' @param ... Additional arguments (ignored)
+#' @return No return value, called for side effects (prints a summary
+#'   of the layout to the console)
+#' @export
+summary.glyph_layout <- function(object, ...) {
   cli::cli_h1("Glyph Layout")
   cli::cli_bullets(c(
-    "*" = "Type: {x$type}",
-    "*" = "Panels: {n}",
-    "*" = "Linked selections: {x$linked_selections}"
+    "*" = "Type: {object$type}",
+    "*" = "Panels: {length(object$plots)}",
+    "*" = "Linked selections: {object$linked_selections}"
   ))
-  invisible(x)
+  invisible(object)
 }
