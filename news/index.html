@@ -19,7 +19,6 @@
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/getting-started.html">Getting Started</a></li>
-    <li><a class="dropdown-item" href="../articles/comparison.html">glyph vs ggplot2: Side-by-Side Comparison</a></li>
   </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
@@ -40,7 +39,9 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="glyph-development-version">glyph (development version)<a class="anchor" aria-label="anchor" href="#glyph-development-version"></a></h2>
-<ul><li>
+<ul><li>Rewrote the README, the pkgdown home page, <code>ARCHITECTURE.md</code> and the Getting Started vignette in plainer language (<a href="https://github.com/josh45-source/glyph/issues/4" class="external-link">#4</a>).</li>
+<li>Removed the comparisons with ggplot2 from the documentation, including the comparison tables in the README and the “glyph vs ggplot2” vignette. The package Title and Description now describe what glyph does (<a href="https://github.com/josh45-source/glyph/issues/5" class="external-link">#5</a>).</li>
+<li>
 <code><a href="../reference/export.html">export()</a></code> to <code>.html</code> no longer fails on machines without pandoc (<a href="https://github.com/josh45-source/glyph/issues/3" class="external-link">#3</a>). Instead of a low-level pandoc error, it now writes the HTML with its JavaScript in a <code>&lt;name&gt;_files</code> folder alongside, and says so, including how to get a single self-contained file (install pandoc, or run inside RStudio). The pandoc requirement is now documented in <code><a href="../reference/export.html">?export</a></code>.</li>
 <li>Fixed the entrance/slide animation for bar charts showing no bars on Safari and Chrome mobile (<a href="https://github.com/josh45-source/glyph/issues/2" class="external-link">#2</a>). The animation was reading a value that was never set and had already been zeroed out, so bars always animated to zero height; it now stores each bar’s real height/position before animating.</li>
 <li>Made plots responsive: the SVG now scales to fill its container (via <code>viewBox</code>) instead of a fixed 600px width, and the theme background now always covers the full plot area. Previously a dark theme’s background didn’t reach the edges on narrower or wider containers, including on mobile.</li>

@@ -1,21 +1,13 @@
-# glyph — Architecture & Design Decisions
+# glyph architecture and design decisions
 
-## Why This Package Exists
+This document explains how glyph is put together and why. It is written
+for contributors and for anyone curious about what happens between a
+pipeline and the plot in the browser.
 
-ggplot2 is the most successful data visualization library ever built.
-But it was designed in 2005–2007 for a world of static print graphics.
-The web, large data, and interactive dashboards have changed what
-“plotting” means. glyph doesn’t try to replace ggplot2 — it asks: *what
-would a grammar of graphics look like if designed for 2026?*
+## 1. The spec comes first
 
-## Core Architecture
-
-### 1. Spec-First Design
-
-Every glyph visualization is a **specification** — a pure R list that
-fully describes the plot without executing any rendering. This is the
-single most important architectural decision and the root cause of most
-advantages:
+Building a plot produces a plain R list that describes it completely.
+Nothing is drawn at this stage:
 
     glyph_spec = {
       data:      data.frame or reference
@@ -28,52 +20,44 @@ advantages:
       layout:    composition config
     }
 
-**Why specs matter:** - *Serializable*:
-`jsonlite::toJSON(compile(spec)$spec)` gives you a JSON blob you can
-send to a server, save to a file, or embed in a document. -
-*Inspectable*: You can print, diff, and test specs without rendering. -
-*Multi-backend, eventually*: the spec doesn’t encode how it’s drawn, so
-other backends (standalone SVG, Canvas, WebGL, PDF) can be added later.
-Today only one backend is implemented: D3.js/SVG via htmlwidgets. -
-*Interoperable*: The spec maps closely to Vega-Lite, enabling
-R↔︎JS↔︎Python workflows.
+Most of the rest of the design follows from this. A spec can be printed,
+diffed and tested without rendering anything.
+[`compile()`](https://josh45-source.github.io/glyph/reference/compile.md)
+turns it into JSON that can be saved, sent to a server or embedded in a
+page. The spec says nothing about how it will be drawn, so a second
+renderer could be added without changing how plots are written. Its
+structure is close to Vega-Lite’s, which is what makes
+[`to_vegalite()`](https://josh45-source.github.io/glyph/reference/to_vegalite.md)
+possible.
 
-ggplot2’s `ggplot` objects contain grobs (grid graphics objects) that
-are tightly coupled to R’s graphics device system. You can’t serialize a
-ggplot to JSON, render it in a browser without conversion, or inspect it
-cleanly.
+## 2. Mappings are quosures
 
-### 2. Quosure-Based Mappings (No `aes()`)
-
-ggplot2 requires `aes()` to create a mapping object. This is a
-historical artifact from when NSE in R was less mature. With rlang’s
-quosure system, we can capture bare names directly:
+`glyph(data, x = wt, y = mpg)` does not evaluate `wt` or `mpg`. rlang
+captures each one together with the environment it was written in.
+Global mappings go on
+[`glyph()`](https://josh45-source.github.io/glyph/reference/glyph.md),
+and each mark can add or override its own:
 
 ``` r
-# ggplot2
-ggplot(data, aes(x = wt, y = mpg, color = factor(cyl)))
 
-# glyph
-glyph(data, x = wt, y = mpg)  # global mappings
-  |> mark_point(color = cyl)    # per-mark mappings
+glyph(mtcars, x = wt, y = mpg) |>
+  mark_point(color = cyl)
 ```
 
-Mappings are stored as **quosures** (expressions + environments) and
-only evaluated during
+Quosures are evaluated only during
 [`compile()`](https://josh45-source.github.io/glyph/reference/compile.md).
-This means the spec is portable and doesn’t carry data references
-prematurely.
+A mapping can be a bare column name or an expression such as `log(wt)`
+or `factor(cyl)`, and the expression sees both the data columns and the
+variables around it.
 
-### 3. Mark Model (vs. Geom + Stat)
+## 3. Marks and transforms
 
-ggplot2 separates **geoms** (visual forms) from **stats** (data
-transforms). `geom_smooth()` is really `stat_smooth()` + `geom_line()`.
-This is elegant in theory but confusing in practice (“should I use
-`geom_bar()` or `stat_count()`?”).
+Points, lines, bars, areas, text, rules, ribbons and links each draw the
+data they are given. They do not summarise it.
 
-glyph uses a simpler model: **marks** are visual encodings. Statistical
-transforms are explicit, composable steps applied to the data before
-marking:
+Statistical summaries are planned as separate, explicit steps that run
+on the data before it reaches a mark. None exist yet. The intended shape
+is:
 
 ``` r
 
@@ -83,60 +67,56 @@ glyph(data, x = wt, y = mpg) |>
   mark_line(y = .fitted)
 ```
 
-This makes the data flow explicit: raw data → transform → mark. No
-hidden stat layers.
+Written this way, the path from raw data to transform to mark is visible
+in the code.
 
-### 4. Interaction as Grammar
+## 4. Interactions are selections
 
-The key insight from Vega-Lite: **most interactions are selections**. A
-tooltip is a single-point selection with a display action. Brushing is a
-multi-point selection. Zooming is a continuous interval selection on the
-position channels.
+Vega-Lite treats a tooltip as a single-point selection that shows
+values, and glyph follows that model. A brush is an interval selection
+that highlights what it covers. Zoom is an interval selection on the
+position channels that rescales them.
 
-glyph encodes interactions as part of the spec, not as runtime behaviors
-bolted on after rendering:
+glyph stores interactions in the spec, next to the marks:
 
 ``` r
 
 interact(
-  tooltip = TRUE,     # point selection → show values
-  brush = TRUE,       # interval selection → highlight
-  zoom = TRUE,        # interval selection → rescale
-  crossfilter = TRUE  # propagate selection to linked views
+  tooltip = TRUE,     # point selection, show values
+  brush = TRUE,       # interval selection, highlight
+  zoom = TRUE,        # interval selection, rescale
+  crossfilter = TRUE  # pass the selection to linked views
 )
 ```
 
-This means: - Interactions survive export (the HTML output is
-self-contained) - The spec can describe interactions without knowing the
-backend - Server-side tools (Shiny) can intercept selection events
+Because they are part of the spec, interactions are kept when a plot is
+exported to HTML. They can be described without knowing the renderer,
+and a future Shiny integration could read selection events on the
+server.
 
-### 5. Token-Based Theming
+## 5. Theme tokens
 
-ggplot2’s `theme()` has 90+ arguments because it treats every visual
-property independently. glyph uses **design tokens** — a small set of
-semantic values that cascade through the visualization:
+Colours, fonts and spacing come from a short list of named values that
+cascade through the plot:
 
-    font       →  all text elements
-    font_size  →  base size; title = font_size × title_size
-    bg         →  plot background; auto-derives fg for contrast
-    fg         →  text, axis lines, ticks
-    accent     →  single-series mark color
-    grid       →  grid visibility and color (derived from bg)
-    padding    →  all margins uniformly
+    font       ->  all text elements
+    font_size  ->  base size; title = font_size x title_size
+    bg         ->  plot background; fg is derived from it for contrast
+    fg         ->  text, axis lines, ticks
+    accent     ->  colour for single-series marks
+    grid       ->  grid visibility and colour (derived from bg)
+    padding    ->  all margins
 
-Setting `bg = "#1a1a2e"` (dark) automatically gives you: - Light text
-(`fg = "#e0e0e0"`) - Subtle grid lines (`grid_color = "#2a2a4a"`) -
-Appropriate tooltip styling
+Setting `bg = "#1a1a2e"` gives light text (`fg = "#e0e0e0"`), a grid
+colour that shows against the dark background (`grid_color = "#2a2a4a"`)
+and matching tooltip styles. Tokens work the way CSS custom properties
+do: you change one value and everything that depends on it follows.
 
-This is how CSS custom properties work, and it’s far more maintainable
-than flat theme arguments.
+## 6. Composition
 
-### 6. Built-In Composition
-
-ggplot2 delegates multi-plot layouts to patchwork, cowplot, or
-gridExtra. glyph includes
+Layout is part of the spec too.
 [`compose()`](https://josh45-source.github.io/glyph/reference/compose.md)
-because layout is part of the visualization design, not an afterthought:
+arranges several plots in one widget:
 
 ``` r
 
@@ -146,74 +126,63 @@ compose(p1, p2, p3,
         shared_scales = "x")
 ```
 
-The layout is part of the spec. This means: - Linked selections can
-propagate across panels - Shared scales are computed globally, not
-per-panel - The entire composition exports as one self-contained HTML
+Since the layout knows about every panel, a selection in one panel can
+highlight rows in the others, and shared scales are computed across all
+panels at once. The whole layout renders as a single widget.
 
-### 7. Multi-Backend Compilation (in progress)
+## 7. Compilation and renderers
 
-The
 [`compile()`](https://josh45-source.github.io/glyph/reference/compile.md)
-step translates the abstract spec into a backend-specific render tree.
-Only one backend is implemented today:
+resolves mappings and scales and produces the JSON that the renderer
+reads. There is one renderer today:
 
-    glyph_spec ──►  compile() ──► D3.js + SVG (htmlwidgets)
-                        │
-                        ├──► Canvas 2D (planned, for 10K–100K points)
-                        ├──► WebGL / regl (planned, for 100K+ points)
-                        └──► Static SVG / PDF export (planned)
+    glyph_spec --> compile() --> D3.js + SVG (htmlwidgets)
+                       |
+                       +--> Canvas 2D (planned)
+                       +--> WebGL / regl (planned)
+                       +--> static SVG / PDF export (planned)
 
-An earlier draft of
+An earlier version of
 [`compile()`](https://josh45-source.github.io/glyph/reference/compile.md)
-picked an `engine` (“html”/“canvas”/“webgl”) by data size, but nothing
-downstream ever branched on that value — there was only ever the one
-D3/SVG renderer, so the “selection” did nothing.
+chose an `engine` (“html”, “canvas” or “webgl”) from the size of the
+data. Nothing downstream ever used that value, because only the D3/SVG
+renderer existed, so the choice had no effect.
 [`compile()`](https://josh45-source.github.io/glyph/reference/compile.md)
-now only accepts `"auto"` (→ `"html"`) or `"html"`, and rejects other
-engines instead of silently accepting a value it can’t act on. When a
-Canvas/WebGL backend is actually built, each backend should implement
-the same mark/scale/interaction semantics; only the rendering primitives
-should differ.
+now accepts only `"auto"` (which means `"html"`) or `"html"`, and
+rejects other engines. If a Canvas or WebGL renderer is built, it should
+implement the same mark, scale and interaction behaviour, with only the
+drawing code differing.
 
-## What’s Hard (Honest Assessment)
+## Known gaps
 
-### Statistical Transforms
+Statistical transforms. There are none yet. The plan is to start with
+explicit `transform_*()` functions for smoothing, binning, density and
+aggregation.
 
-ggplot2’s stat system is deeply integrated and covers dozens of methods.
-Replicating this is a multi-year effort. glyph’s strategy: start with
-explicit `transform_*()` functions for the most common cases (smooth,
-bin, density, aggregate) and grow from there.
+Extending glyph. A new mark needs code in both R and the JavaScript
+renderer, and that process is not documented yet
+([\#9](https://github.com/josh45-source/glyph/issues/9)). For anything
+glyph can’t draw,
+[`to_vegalite()`](https://josh45-source.github.io/glyph/reference/to_vegalite.md)
+gives a starting point in Vega-Lite.
 
-### Extension Ecosystem
+Larger datasets. Every mark is an SVG element, and there is no density
+rendering or way to switch off costly features
+([\#8](https://github.com/josh45-source/glyph/issues/8)).
 
-ggplot2 has 200+ extension packages. glyph can’t compete on breadth.
-Instead, the Vega-Lite export path provides an escape hatch: anything
-glyph can’t do, Vega-Lite/D3 probably can. The spec-first design also
-makes extension easier — add a new mark type without touching the
-renderer.
+Static output.
+[`export()`](https://josh45-source.github.io/glyph/reference/export.md)
+writes HTML and JSON only. Static SVG, PNG and PDF are planned through
+headless Chrome, which would keep static output identical to what the
+browser draws.
 
-### Print Quality
-
-R’s PDF/SVG graphics devices have been tuned for decades. glyph’s static
-export (via headless Chrome rendering of the HTML output) will never
-match R’s native device quality for print. For publication-quality
-static plots, ggplot2 remains the right tool.
-
-### Community Adoption
-
-The cold truth: R visualization is a solved problem for most users.
-Convincing people to learn a new grammar requires either a dramatically
-better experience (possible) or institutional adoption (hard). glyph’s
-best path is as a complement — used when ggplot2 falls short — not a
-replacement.
-
-## Technology Choices
+## Technology choices
 
 | Layer | Choice | Rationale |
 |----|----|----|
-| R API | rlang + base pipe | Modern NSE; works with existing tidyverse muscle memory |
+| R API | rlang + base pipe | Bare-name mappings and the native pipe R users already know |
 | Serialization | jsonlite | Mature, fast, round-trips R lists to JSON cleanly |
-| Interactive rendering | htmlwidgets + D3.js v7 | De facto standard for R→browser graphics |
-| Large-data rendering | regl (planned) | WebGL without the boilerplate; proven by deck.gl |
-| Static export | headless Chrome (planned) | Pixel-perfect match with interactive version |
-| Interop | Vega-Lite JSON | Bridges R, Python (Altair), and JavaScript ecosystems |
+| Interactive rendering | htmlwidgets + D3.js v7 | The standard route from R to browser graphics |
+| Large-data rendering | regl (planned) | WebGL without the boilerplate; used by deck.gl |
+| Static export | headless Chrome (planned) | Output matches the interactive version |
+| Interop | Vega-Lite JSON | Works with R, Python (Altair) and JavaScript |

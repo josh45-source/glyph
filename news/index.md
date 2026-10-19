@@ -2,6 +2,13 @@
 
 ## glyph (development version)
 
+- Rewrote the README, the pkgdown home page, `ARCHITECTURE.md` and the
+  Getting Started vignette in plainer language
+  ([\#4](https://github.com/josh45-source/glyph/issues/4)).
+- Removed the comparisons with ggplot2 from the documentation, including
+  the comparison tables in the README and the “glyph vs ggplot2”
+  vignette. The package Title and Description now describe what glyph
+  does ([\#5](https://github.com/josh45-source/glyph/issues/5)).
 - [`export()`](https://josh45-source.github.io/glyph/reference/export.md)
   to `.html` no longer fails on machines without pandoc
   ([\#3](https://github.com/josh45-source/glyph/issues/3)). Instead of a
