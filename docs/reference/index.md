@@ -18,22 +18,35 @@ Geometric layers that draw data onto the plot.
 
 - [`marks`](https://josh45-source.github.io/glyph/reference/marks.md) :
   Visual Marks
-- [`mark_area()`](https://josh45-source.github.io/glyph/reference/mark_area.md)
-  : Add an area mark
-- [`mark_bar()`](https://josh45-source.github.io/glyph/reference/mark_bar.md)
-  : Add a bar mark
-- [`mark_line()`](https://josh45-source.github.io/glyph/reference/mark_line.md)
-  : Add a line mark
-- [`mark_link()`](https://josh45-source.github.io/glyph/reference/mark_link.md)
-  : Add a link/edge mark (for networks, sankeys, slope graphs)
 - [`mark_point()`](https://josh45-source.github.io/glyph/reference/mark_point.md)
   : Add a point mark (scatterplot)
-- [`mark_ribbon()`](https://josh45-source.github.io/glyph/reference/mark_ribbon.md)
-  : Add a ribbon/band mark (for confidence intervals, ranges)
-- [`mark_rule()`](https://josh45-source.github.io/glyph/reference/mark_rule.md)
-  : Add a rule (reference line) mark
+- [`mark_line()`](https://josh45-source.github.io/glyph/reference/mark_line.md)
+  : Add a line mark
+- [`mark_bar()`](https://josh45-source.github.io/glyph/reference/mark_bar.md)
+  : Add a bar mark
+- [`mark_area()`](https://josh45-source.github.io/glyph/reference/mark_area.md)
+  : Add an area mark
 - [`mark_text()`](https://josh45-source.github.io/glyph/reference/mark_text.md)
   : Add a text/label mark
+- [`mark_rule()`](https://josh45-source.github.io/glyph/reference/mark_rule.md)
+  : Add a rule (reference line) mark
+- [`mark_ribbon()`](https://josh45-source.github.io/glyph/reference/mark_ribbon.md)
+  : Add a ribbon/band mark (for confidence intervals, ranges)
+- [`mark_link()`](https://josh45-source.github.io/glyph/reference/mark_link.md)
+  : Add a link/edge mark (for networks, sankeys, slope graphs)
+
+## Statistical marks
+
+Marks that summarise the distribution of a variable.
+
+- [`mark_boxplot()`](https://josh45-source.github.io/glyph/reference/mark_boxplot.md)
+  : Add a boxplot mark
+- [`mark_violin()`](https://josh45-source.github.io/glyph/reference/mark_violin.md)
+  : Add a violin mark
+- [`mark_sina()`](https://josh45-source.github.io/glyph/reference/mark_sina.md)
+  : Add a sina mark
+- [`mark_histogram()`](https://josh45-source.github.io/glyph/reference/mark_histogram.md)
+  : Add a histogram mark
 
 ## Interactivity
 

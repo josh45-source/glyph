@@ -66,8 +66,10 @@ compile.glyph_spec <- function(spec, engine = "auto",
   # (not a per-mark `data` override) may generate new columns (e.g. for
   # `log(wt)`) — those are folded back into `enriched_data` so the top-level
   # serialized `data` (used by facets/marginals) also has them.
+  facet_fields <- c(facet_resolved$facets$cols, facet_resolved$facets$rows)
   resolved <- lapply(spec$marks, function(mark) {
-    resolve_mark(mark, spec$data, spec$mappings, facet_resolved$generated)
+    resolve_mark(mark, spec$data, spec$mappings, facet_resolved$generated,
+                 facet_fields)
   })
   resolved_marks <- lapply(resolved, `[[`, "mark_json")
   for (r in resolved) {
@@ -79,6 +81,13 @@ compile.glyph_spec <- function(spec, engine = "auto",
 
   # Step 3: Auto-detect scale types from data (including computed mappings)
   resolved_scales <- resolve_scales(spec$scales, spec$mappings, spec$data)
+  # A histogram's y axis shows counts, which no mapping names.
+  is_histogram <- vapply(resolved_marks, function(m) identical(m$type, "histogram"),
+                         logical(1))
+  if (any(is_histogram) && is.null(resolved_scales$y)) {
+    resolved_scales$y <- list(aesthetic = "y", type = "linear",
+                              label = "count", nice = TRUE)
+  }
 
   # Step 4: Build the JSON specification
   json_spec <- list(
@@ -226,7 +235,8 @@ resolve_facets <- function(facets, data) {
 }
 
 #' @noRd
-resolve_mark <- function(mark, global_data, global_mappings, extra_cols = list()) {
+resolve_mark <- function(mark, global_data, global_mappings, extra_cols = list(),
+                         facet_fields = character()) {
   mark_data <- mark$data %||% global_data
   uses_global_data <- is.null(mark$data)
   all_mappings <- utils::modifyList(global_mappings, mark$mappings)
@@ -293,16 +303,25 @@ resolve_mark <- function(mark, global_data, global_mappings, extra_cols = list()
   position_aes <- c("x", "y", "x2", "y2", "y_min", "y_max")
   work_data <- drop_na_position_rows(work_data, encoding, position_aes, mark$id)
 
-  list(
-    mark_json = list(
-      type     = mark$type,
-      encoding = encoding,
-      style    = mark$style,
-      id       = mark$id,
-      data     = list(values = df_to_records(work_data))
-    ),
-    enriched = enriched
+  mark_json <- list(
+    type     = mark$type,
+    encoding = encoding,
+    style    = mark$style,
+    id       = mark$id,
+    data     = list(values = df_to_records(work_data))
   )
+
+  # Statistical marks (boxplot, violin, histogram, sina) replace their rows
+  # with computed summaries; see R/stats.R.
+  if (!is.null(mark$stat)) {
+    if (is.null(work_data)) work_data <- data.frame()
+    st <- compute_stat(mark, work_data, encoding, facet_fields)
+    mark_json$encoding <- st$encoding
+    mark_json$data <- list(values = st$records)
+    mark_json$stat <- st$stat
+  }
+
+  list(mark_json = mark_json, enriched = enriched)
 }
 
 #' Drop rows with NA in any mapped position aesthetic and warn
