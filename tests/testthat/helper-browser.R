@@ -32,6 +32,13 @@ save_page <- function(x, env = parent.frame()) {
   file
 }
 
+# A file:// URL for a local file, on Windows ("file:///C:/...") as elsewhere.
+file_url <- function(file) {
+  path <- normalizePath(file, winslash = "/")
+  if (!startsWith(path, "/")) path <- paste0("/", path)
+  paste0("file://", utils::URLencode(path))
+}
+
 # Opens a page in a new headless Chrome tab of the given size, waits until
 # every widget on it has drawn, and closes the tab when the calling test ends.
 # Script errors are collected in `window.__errors`.
@@ -42,7 +49,7 @@ open_page <- function(file, width = 800, height = 600, env = parent.frame()) {
     "window.__errors = []; addEventListener('error', e => window.__errors.push(e.message));"
   )
   loaded <- s$Page$loadEventFired(wait_ = FALSE)
-  s$Page$navigate(paste0("file://", normalizePath(file)), wait_ = FALSE)
+  s$Page$navigate(file_url(file), wait_ = FALSE)
   s$wait_for(loaded)
   wait_until(s, "[...document.querySelectorAll('.html-widget')].every(w => w.querySelector('svg'))")
   # Let entrance animations and transitions finish.
@@ -100,11 +107,12 @@ centre_of <- function(s, selector) {
 }
 
 # Script that converts drawn positions back to data values using the axis
-# ticks of the first plot on the page, so the tests check what was drawn
-# against values computed in R, not against glyph's own calculations.
+# ticks of the first plot on the page (or of the plot inside `root`), so the
+# tests check what was drawn against values computed in R, not against
+# glyph's own calculations.
 AXIS_JS <- "
-window.axisMap = function(axis) {
-  const ticks = [...document.querySelectorAll('.axis-' + axis + ' .tick')].map(t => {
+window.axisMap = function(axis, root) {
+  const ticks = [...(root || document).querySelectorAll('.axis-' + axis + ' .tick')].map(t => {
     const m = t.getAttribute('transform').match(/translate\\(([-\\d.e]+),\\s*([-\\d.e]+)\\)/);
     const v = parseFloat(t.textContent.replace('\\u2212', '-').replace(/,/g, ''));
     return { px: +m[axis === 'x' ? 1 : 2], v };

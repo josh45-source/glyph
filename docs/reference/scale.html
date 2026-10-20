@@ -77,7 +77,9 @@
 
 
 <dt id="arg-domain">domain<a class="anchor" aria-label="anchor" href="#arg-domain"></a></dt>
-<dd><p>Explicit domain (data range). NULL for auto.</p></dd>
+<dd><p>Explicit domain (data range). NULL for auto. A domain set
+here is used as given, so it is also how to start the value axis of a
+bar, area or histogram somewhere other than zero.</p></dd>
 
 
 <dt id="arg-range">range<a class="anchor" aria-label="anchor" href="#arg-range"></a></dt>
@@ -89,7 +91,8 @@
 
 
 <dt id="arg-zero">zero<a class="anchor" aria-label="anchor" href="#arg-zero"></a></dt>
-<dd><p>Force zero in domain (TRUE/FALSE)</p></dd>
+<dd><p>Force zero in domain (TRUE/FALSE). Bar, area and histogram
+marks always include zero on their value axis unless <code>domain</code> is set.</p></dd>
 
 
 <dt id="arg-reverse">reverse<a class="anchor" aria-label="anchor" href="#arg-reverse"></a></dt>

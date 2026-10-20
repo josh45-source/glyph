@@ -61,22 +61,64 @@ test_that("slide-animated bars end at their full height", {
   # The animation ends exactly where the bars are drawn without one.
   expect_equal(geometry("slide"), geometry("still"))
   heights <- geometry("slide")[c(FALSE, TRUE)]
-  # The smallest bar has no height because the y axis starts at the smallest
-  # value rather than zero (#29), with or without the animation.
-  expect_true(all(heights[df$v > min(df$v)] > 0))
+  expect_true(all(heights > 0))
 })
 
-test_that("bars start at zero (#29)", {
-  skip("The y axis of a bar chart doesn't include zero yet (#29)")
+test_that("bars, areas and histograms start at zero (#29)", {
   skip_if_no_browser()
   df <- data.frame(g = c("a", "b", "c", "d"), v = c(3, 7, 5, 9))
-  s <- open_page(save_page(glyph(df, x = g, y = v) |> mark_bar()))
+  signed <- data.frame(g = c("a", "b", "c"), v = c(-3, 5, 2))
+  series <- data.frame(t = 1:6, v = c(4, 6, 5, 8, 7, 9))
+  s <- open_page(save_widgets(list(
+    bar = render(glyph(df, x = g, y = v) |> mark_bar()),
+    signed = render(glyph(signed, x = g, y = v) |> mark_bar()),
+    area = render(glyph(series, x = t, y = v) |> mark_area()),
+    histogram = render(glyph(mtcars, x = mpg) |> mark_histogram()),
+    domain = render(glyph(df, x = g, y = v) |> mark_bar() |> scale("y", domain = c(2, 10))),
+    point = render(glyph(df, x = v, y = v) |> mark_point()),
+    line = render(glyph(series, x = t, y = v) |> mark_line())
+  )), width = 800, height = 3200)
   js(s, AXIS_JS)
-  ends <- js(s, "(() => { const y = axisMap('y');
-    return [...document.querySelectorAll('.marks-bar rect')].map(r =>
-      [y(+r.getAttribute('y')), y(+r.getAttribute('y') + +r.getAttribute('height'))]); })()")
-  expect_equal(vapply(ends, function(e) e[[1]], numeric(1)), df$v, tolerance = 0.05)
-  expect_equal(vapply(ends, function(e) e[[2]], numeric(1)), rep(0, 4), tolerance = 0.05)
+  # Each bar's two ends, in data units: [value end, baseline end].
+  bar_ends <- function(id) {
+    ends <- js(s, sprintf("(() => { const root = document.getElementById('%s'), y = axisMap('y', root);
+      return [...root.querySelectorAll('.marks-bar rect')].map(r =>
+        [y(+r.getAttribute('y')), y(+r.getAttribute('y') + +r.getAttribute('height'))]); })()", id))
+    lapply(ends, unlist)
+  }
+  lowest_tick <- function(id) js(s, sprintf(
+    "Math.min(...[...document.querySelectorAll('#%s .axis-y .tick text')].map(t => parseFloat(t.textContent.replace('\u2212', '-'))))", id))
+
+  # Bars run from zero to their value, so every bar has its height.
+  ends <- bar_ends("bar")
+  expect_equal(vapply(ends, `[`, numeric(1), 1), df$v, tolerance = 0.05)
+  expect_equal(vapply(ends, `[`, numeric(1), 2), rep(0, 4), tolerance = 0.05)
+
+  # A negative bar hangs down from zero.
+  ends <- bar_ends("signed")
+  expect_equal(vapply(ends, function(e) min(e), numeric(1)), pmin(signed$v, 0), tolerance = 0.05)
+  expect_equal(vapply(ends, function(e) max(e), numeric(1)), pmax(signed$v, 0), tolerance = 0.05)
+
+  # The area is filled down to zero.
+  area_bottom <- js(s, "(() => { const root = document.getElementById('area'), y = axisMap('y', root);
+    const ys = root.querySelector('path.marks-area').getAttribute('d').match(/-?[\\d.]+(e-?\\d+)?/g).map(Number).filter((v, i) => i % 2 === 1);
+    return y(Math.max(...ys)); })()")
+  expect_equal(area_bottom, 0, tolerance = 0.05)
+
+  # Histogram counts start at zero.
+  expect_equal(lowest_tick("histogram"), 0)
+
+  # A domain set with scale() wins: the axis starts at 2, and bars rise from
+  # the bottom of the plot.
+  expect_equal(lowest_tick("domain"), 2)
+  ends <- bar_ends("domain")
+  expect_equal(vapply(ends, `[`, numeric(1), 1), df$v, tolerance = 0.05)
+  expect_equal(vapply(ends, `[`, numeric(1), 2), rep(2, 4), tolerance = 0.05)
+
+  # Points and lines don't get a zero baseline.
+  expect_gt(lowest_tick("point"), 0)
+  expect_gt(lowest_tick("line"), 0)
+  expect_length(page_errors(s), 0)
 })
 
 test_that("the x axis is visible in a wide, short container (#17)", {

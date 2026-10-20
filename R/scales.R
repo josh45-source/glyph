@@ -13,10 +13,13 @@ NULL
 #' @param aesthetic Which channel: "x", "y", "color", "size", "shape", "alpha"
 #' @param type Scale type: "linear", "log", "sqrt", "time", "ordinal",
 #'   "band", "quantize", "threshold"
-#' @param domain Explicit domain (data range). NULL for auto.
+#' @param domain Explicit domain (data range). NULL for auto. A domain set
+#'   here is used as given, so it is also how to start the value axis of a
+#'   bar, area or histogram somewhere other than zero.
 #' @param range Explicit output range. For color: a palette name or vector.
 #' @param nice Round domain to nice values (TRUE/FALSE)
-#' @param zero Force zero in domain (TRUE/FALSE)
+#' @param zero Force zero in domain (TRUE/FALSE). Bar, area and histogram
+#'   marks always include zero on their value axis unless `domain` is set.
 #' @param reverse Reverse the scale
 #' @param label Axis/legend label (NULL for auto from column name)
 #' @param format Format string for tick labels (e.g. "$.2f", "%b %Y")

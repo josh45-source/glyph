@@ -1,5 +1,14 @@
 # glyph (development version)
 
+* Bar and area charts now start their value axis at zero (#29). The y axis
+  used to start at the smallest value, so the smallest bar had no height
+  and the others weren't in proportion to their values. Bars and areas are
+  now drawn from zero, so a negative bar hangs down from zero instead of
+  rising from the bottom of the plot. Histograms already started at zero.
+  A domain set with `scale()` is used as given, including on the shared
+  axes of `facet()` and `compose()`. Point and line marks are unchanged.
+* A GitHub Actions workflow runs `R CMD check` on Windows, macOS and Linux
+  for every pull request, alongside the browser tests and the pkgdown site.
 * New browser tests (#28) draw plots in headless Chrome through chromote and
   check what was drawn: that plots draw at all, that slide-animated bars end
   at their full height, that the x axis stays visible in a wide, short

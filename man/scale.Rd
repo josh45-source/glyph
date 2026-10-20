@@ -26,13 +26,16 @@ scale(
 \item{type}{Scale type: "linear", "log", "sqrt", "time", "ordinal",
 "band", "quantize", "threshold"}
 
-\item{domain}{Explicit domain (data range). NULL for auto.}
+\item{domain}{Explicit domain (data range). NULL for auto. A domain set
+here is used as given, so it is also how to start the value axis of a
+bar, area or histogram somewhere other than zero.}
 
 \item{range}{Explicit output range. For color: a palette name or vector.}
 
 \item{nice}{Round domain to nice values (TRUE/FALSE)}
 
-\item{zero}{Force zero in domain (TRUE/FALSE)}
+\item{zero}{Force zero in domain (TRUE/FALSE). Bar, area and histogram
+marks always include zero on their value axis unless \code{domain} is set.}
 
 \item{reverse}{Reverse the scale}
 
