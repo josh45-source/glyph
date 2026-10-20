@@ -2,6 +2,22 @@
 
 ## glyph (development version)
 
+- Bar and area charts now start their value axis at zero
+  ([\#29](https://github.com/josh45-source/glyph/issues/29)). The y axis
+  used to start at the smallest value, so the smallest bar had no height
+  and the others weren’t in proportion to their values. Bars and areas
+  are now drawn from zero, so a negative bar hangs down from zero
+  instead of rising from the bottom of the plot. Histograms already
+  started at zero. A domain set with
+  [`scale()`](https://josh45-source.github.io/glyph/reference/scale.md)
+  is used as given, including on the shared axes of
+  [`facet()`](https://josh45-source.github.io/glyph/reference/facet.md)
+  and
+  [`compose()`](https://josh45-source.github.io/glyph/reference/compose.md).
+  Point and line marks are unchanged.
+- A GitHub Actions workflow runs `R CMD check` on Windows, macOS and
+  Linux for every pull request, alongside the browser tests and the
+  pkgdown site.
 - New browser tests
   ([\#28](https://github.com/josh45-source/glyph/issues/28)) draw plots
   in headless Chrome through chromote and check what was drawn: that

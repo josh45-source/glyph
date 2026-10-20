@@ -37,7 +37,9 @@ scale(
 
 - domain:
 
-  Explicit domain (data range). NULL for auto.
+  Explicit domain (data range). NULL for auto. A domain set here is used
+  as given, so it is also how to start the value axis of a bar, area or
+  histogram somewhere other than zero.
 
 - range:
 
@@ -49,7 +51,8 @@ scale(
 
 - zero:
 
-  Force zero in domain (TRUE/FALSE)
+  Force zero in domain (TRUE/FALSE). Bar, area and histogram marks
+  always include zero on their value axis unless `domain` is set.
 
 - reverse:
 
