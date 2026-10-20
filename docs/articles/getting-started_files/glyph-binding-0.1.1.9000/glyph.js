@@ -372,8 +372,13 @@ function computeSharedDomains(panels, sharedAxes) {
 
   // Every mark of every panel contributes, using the mark's own rows (which
   // carry computed columns and statistical summaries) when it has them.
-  const panelExtent = (p, axis) => unionExtents((p.marks || []).map(m =>
-    markExtent(m, (m.data && m.data.values) || p.data?.values || [], axis)));
+  // A numeric domain set with scale() stands in for the panel's data.
+  const panelExtent = (p, axis) => {
+    const domain = p.scales?.[axis]?.domain;
+    if (Array.isArray(domain) && domain.length === 2 && domain.every(Number.isFinite)) return domain;
+    return unionExtents((p.marks || []).map(m =>
+      markExtent(m, (m.data && m.data.values) || p.data?.values || [], axis)));
+  };
 
   if (wantX) {
     const ext = unionExtents(panels.map(p => panelExtent(p, "x")));
@@ -415,6 +420,9 @@ function markExtent(mark, data, axis) {
   } else if (enc[axis]?.field && enc[axis].type !== "nominal" && enc[axis].type !== "ordinal") {
     const f = enc[axis].field;
     data.forEach(d => vals.push(d[f]));
+    // Bars and areas are measured from zero, so their value axis includes it
+    // (#29). A domain set with scale() is used instead of this extent.
+    if (axis === "y" && (mark.type === "bar" || mark.type === "area")) vals.push(0);
   } else if (axis === "y" && enc.y_min?.field && enc.y_max?.field) {
     data.forEach(d => vals.push(d[enc.y_min.field], d[enc.y_max.field]));
   } else {
@@ -923,6 +931,11 @@ function drawPoints(g, data, enc, scales, style, w, h, interact, theme, markRegi
 
 function drawBars(g, data, enc, scales, style, w, h, interact, theme, markRegistry) {
   const bandwidth = scales.x?.bandwidth ? scales.x.bandwidth() : w / Math.max(data.length, 1) * 0.8;
+  // Bars run from zero to their value, kept inside the plot when a domain
+  // set with scale() leaves zero or the value outside it.
+  const clampY = v => Math.max(0, Math.min(h, v));
+  const base = scales.y ? clampY(scales.y(0)) : h;
+  const end = d => clampY(scales.y(getVal(d, enc.y)));
 
   const bars = g.append("g").attr("class", "marks-bar")
     .selectAll("rect")
@@ -932,11 +945,13 @@ function drawBars(g, data, enc, scales, style, w, h, interact, theme, markRegist
       const val = scales.x ? scales.x(getVal(d, enc.x)) : 0;
       return scales.x?.bandwidth ? val : val - bandwidth / 2;
     })
-    .attr("y", d => scales.y ? scales.y(getVal(d, enc.y)) : 0)
+    .attr("y", d => scales.y ? Math.min(end(d), base) : 0)
     .attr("width", bandwidth)
-    .attr("height", d => scales.y ? h - scales.y(getVal(d, enc.y)) : 0)
+    .attr("height", d => scales.y ? Math.abs(base - end(d)) : 0)
     .attr("fill", d => scales.color ? scales.color(getVal(d, enc.color)) : (theme.accent || "#4269d0"))
-    .attr("rx", style.corner_radius || 0);
+    .attr("rx", style.corner_radius || 0)
+    // Below zero: the slide animation grows these downward (applyAnimation).
+    .property("__glyphGrowsDown", d => !!scales.y && end(d) > base);
 
   registerMark(markRegistry, bars, 1);
 
@@ -976,9 +991,11 @@ function drawLine(g, data, enc, scales, style, w, h, interact, theme) {
 }
 
 function drawArea(g, data, enc, scales, style, h, interact, theme) {
+  // Filled down to zero, or to the edge of the plot when a domain set with
+  // scale() leaves zero outside it.
   const area = d3.area()
     .x(d => scales.x(getVal(d, enc.x)))
-    .y0(h)
+    .y0(Math.max(0, Math.min(h, scales.y(0))))
     .y1(d => scales.y(getVal(d, enc.y)));
 
   if (style.interpolate === "monotone") area.curve(d3.curveMonotoneX);
@@ -2570,7 +2587,7 @@ function applyAnimation(g, animConfig, spec, scales, data, theme) {
         this.__glyphY = +this.getAttribute("y");
       })
       .attr("height", 0)
-      .attr("y", function() { return this.__glyphY + this.__glyphH; })
+      .attr("y", function() { return this.__glyphGrowsDown ? this.__glyphY : this.__glyphY + this.__glyphH; })
       .transition()
       .duration(duration)
       .delay((d, i) => i * stagger)
