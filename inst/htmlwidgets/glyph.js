@@ -2280,15 +2280,13 @@ function addZoom(svgNode, g, dragState) {
       }
       return !event.button && !event.ctrlKey && dragModeOf(dragState, "pan") === "pan";
     })
+    // Applied straight away. Deferring it to the next frame, as perFrame()
+    // does for hover, measured slower in Chromium, which already delivers
+    // wheel events once per frame: one more full repaint of a large plot
+    // before the zoom shows (#25).
     .on("zoom", function({ transform }) {
-      applyZoom.schedule(transform);
+      g.attr("transform", `${baseTransform} ${transform}`);
     });
-
-  // Every zoom event moves the whole plot group, which the browser then
-  // repaints with every mark in it, so apply only the latest transform, once
-  // per frame (see perFrame): wheel and pinch events can come faster than a
-  // large plot can be repainted.
-  const applyZoom = perFrame(transform => g.attr("transform", `${baseTransform} ${transform}`));
 
   svgSel.call(zoom);
 

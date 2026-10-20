@@ -8,10 +8,12 @@
   but no zoom now get a controls bar for the button. When the controls don't
   fit the plot's width, as in small facet panels, they show just their
   symbols, with the full label in their tooltip.
-* Zooming large point plots does less work (#25). Zoom updates are applied
-  at most once per frame, and "Reset zoom" and double-click zooming jump
-  straight to the result instead of animating when the plot has 3,000 or
-  more elements, since each frame of the animation redraws every point.
+* "Reset zoom" and double-click zooming no longer lag on large plots (#25).
+  They jump straight to the result instead of animating when the plot has
+  3,000 or more elements, since each frame of the animation redrew every
+  point. At 15,000 points a reset now takes about 50ms instead of 470ms.
+  Each zoom step still redraws every point, which canvas drawing (#20) is
+  meant to fix.
 * Tooltips no longer fall behind the pointer over dense areas of a large
   point plot (#23). With brushing on, each pointer move used to search every
   point for the nearest one and move the tooltip, and in WebKit moving the
