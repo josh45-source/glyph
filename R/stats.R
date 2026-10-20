@@ -12,7 +12,8 @@
 # scales, colour scale and facet filtering work on it unchanged, plus `.rows`:
 # the 0-based indices of the rows it summarises. The renderer uses `.rows` to
 # connect a summary element to row-level selections from brushing and
-# crossfilter. Sina marks keep one record per row and add the position offsets.
+# crossfilter. Sina marks keep one row per row of data and add the position
+# offsets; those rows are sent as columns like any other plot data.
 #
 # mark_polygon() uses the same machinery without computing any statistic: its
 # rows are vertices, and they are collected into one record per polygon (see
@@ -25,8 +26,9 @@
 #' @param data The mark's resolved rows (after NA dropping).
 #' @param encoding The mark's resolved encoding.
 #' @param facet_fields Facet field names to group by, if any.
-#' @return A list with `records` (row records for the JSON), `encoding`
-#'   (updated encoding) and `stat` (what the renderer needs to know).
+#' @return A list with `records` (summary records for the JSON) or, for
+#'   sina, `frame` (the rows, sent as columns), plus `encoding` (updated
+#'   encoding) and `stat` (what the renderer needs to know).
 #' @noRd
 compute_stat <- function(mark, data, encoding, facet_fields = character()) {
   stat <- mark$stat
@@ -258,7 +260,7 @@ stat_sina <- function(mark, data, encoding, facet_fields) {
 
   data[[".xc"]] <- xc
   data[[".offset"]] <- offset
-  list(records = df_to_records(data), encoding = encoding, stat = list(type = "sina"))
+  list(frame = data, encoding = encoding, stat = list(type = "sina"))
 }
 
 stat_histogram <- function(mark, data, encoding, facet_fields) {

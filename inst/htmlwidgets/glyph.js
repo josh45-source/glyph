@@ -39,7 +39,7 @@ HTMLWidgets.widget({
     // its x axis was cut off (#17). When the container has no size yet (e.g.
     // it is hidden), fall back to the spec's size.
     function doRender(x) {
-      spec = x.spec;
+      spec = inflateSpec(x.spec);
       const box = el.getBoundingClientRect();
       let w = Math.floor(box.width) || spec.width || width || 600;
       let h = Math.floor(box.height) || spec.height || height || 400;
@@ -79,6 +79,66 @@ HTMLWidgets.widget({
     }
   }
 });
+
+// ---- Data payload ---------------------------------------------------------------
+//
+// The R side sends a plot's rows one column at a time ({columns: {name:
+// [...]}, n}), which serializes far faster than one object per row. A mark
+// that draws the plot's own rows doesn't send them again: it names the
+// columns it uses and, when rows were dropped for missing values, the rows it
+// keeps ({from: "plot", fields, rows}). Statistical summaries still arrive as
+// one object per box, bin or polygon ({values}). inflateSpec() turns the
+// first two back into row objects ({values}) with the same keys, in the same
+// order, so everything below works on exactly the data it always has.
+
+// jsonlite writes a one-element vector as a bare value, not an array.
+function columnArray(v) {
+  return Array.isArray(v) ? v : [v];
+}
+
+function rowsFromColumns(columns, n, fields, rowIndex) {
+  const names = fields ? columnArray(fields) : Object.keys(columns || {});
+  const cols = names.map(f => (n > 0 ? columnArray(columns[f]) : []));
+  const index = rowIndex === null || rowIndex === undefined ? null : columnArray(rowIndex);
+  const count = index ? index.length : n;
+  const rows = new Array(count);
+  for (let r = 0; r < count; r++) {
+    const i = index ? index[r] : r;
+    const row = {};
+    for (let c = 0; c < names.length; c++) row[names[c]] = cols[c][i];
+    rows[r] = row;
+  }
+  return rows;
+}
+
+// Rebuilds row objects throughout a compiled spec: the plot's own data, each
+// mark's data, compose() panels and an inset() plot. Safe to call again on a
+// spec it has already inflated (e.g. when the widget is resized).
+function inflateSpec(spec) {
+  if (!spec || spec.__glyphInflated) return spec;
+  Object.defineProperty(spec, "__glyphInflated", { value: true });
+
+  if (spec.type === "layout") {
+    (spec.panels || []).forEach(inflateSpec);
+    return spec;
+  }
+
+  const top = spec.data || {};
+  if (top.columns) spec.data = { values: rowsFromColumns(top.columns, top.n) };
+
+  for (const mark of (spec.marks || [])) {
+    const d = mark.data;
+    if (!d) continue;
+    if (d.from === "plot") {
+      mark.data = { values: rowsFromColumns(top.columns, top.n, d.fields, d.rows) };
+    } else if (d.columns) {
+      mark.data = { values: rowsFromColumns(d.columns, d.n) };
+    }
+  }
+
+  if (spec.layout && spec.layout.inset) inflateSpec(spec.layout.inset);
+  return spec;
+}
 
 // ---- Core single-spec renderer ------------------------------------------------
 //

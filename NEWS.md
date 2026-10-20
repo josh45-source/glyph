@@ -1,5 +1,21 @@
 # glyph (development version)
 
+* Plots with many rows are much quicker to prepare (#8). Plot data now goes
+  to the browser as one array per column instead of one object per row, and
+  is turned back into rows in the browser before anything is drawn. Each row
+  is sent once: a mark that draws the plot's own data refers to it instead
+  of carrying a second copy. Boxplot, violin and histogram marks send their
+  summaries and the row indices that brushing and linked selections use, not
+  the raw rows. At 100,000 points `compile()` takes 0.1s instead of 65s, the
+  widget is ready for the Viewer in 0.4s, and the file is 5 MB instead of
+  14 MB. Plots look and behave as before.
+* The compiled JSON (`compile()$json` and `export(..., "plot.json")`) has a
+  new data layout, marked by `"$schema": "glyph/v0.2"`. Data is
+  `{"columns": {...}, "n": rows}`, and a mark that draws the plot's data has
+  `{"from": "plot", "fields": [...], "rows": [...]}`, where `rows` is `null`
+  or lists the 0-based rows it keeps after dropping missing values.
+  Boxplot, violin, histogram and polygon marks send `{"values": [...]}`, one
+  record per box, violin, bin or shape.
 * New `mark_polygon()` draws closed shapes from x/y vertices, one per value
   of `group` (#7). Vertices are joined in row order, `color` fills each
   shape, `style` sets the fill, outline colour, outline width and opacity,

@@ -78,6 +78,18 @@ compile.glyph_spec <- function(spec, engine = "auto",
       for (col in new_cols) enriched_data[[col]] <- r$enriched[[col]]
     }
   }
+  # A mark can only refer to the plot's rows if every column it draws is
+  # there with exactly its values (a column in the data could already have a
+  # generated column's name); otherwise it sends its own copy, as every mark
+  # used to.
+  for (i in seq_along(resolved)) {
+    d <- resolved_marks[[i]]$data
+    if (!identical(d$from, "plot")) next
+    same <- vapply(as.character(d$fields), function(f) {
+      identical(enriched_data[[f]], resolved[[i]]$enriched[[f]])
+    }, logical(1))
+    if (!all(same)) resolved_marks[[i]]$data <- df_to_columns(resolved[[i]]$frame)
+  }
 
   # Step 3: Auto-detect scale types from data (including computed mappings)
   resolved_scales <- resolve_scales(spec$scales, spec$mappings, spec$data)
@@ -89,12 +101,27 @@ compile.glyph_spec <- function(spec, engine = "auto",
                               label = "count", nice = TRUE)
   }
 
-  # Step 4: Build the JSON specification
+  # Step 4: Choose which of the plot's own columns to send. A mark that
+  # draws the plot's data (no per-mark `data`, no statistic) refers to these
+  # rows instead of sending its own copy, so then every column is sent, as is
+  # the case for keyframe animation, which reads them directly. Otherwise the
+  # marks carry their own rows or summaries, and only what facet() and
+  # marginals() read from the plot's data is sent; a plot of statistical
+  # marks alone sends none of its raw rows.
+  refers_to_plot <- vapply(resolved_marks, function(m) identical(m$data$from, "plot"), logical(1))
+  top_fields <- if (any(refers_to_plot) || !is.null(spec$animate$by)) {
+    names(enriched_data)
+  } else {
+    intersect(c(facet_fields, marginal_fields(spec$layout, resolved_marks)), names(enriched_data))
+  }
+  top_data <- if (length(top_fields) > 0) enriched_data[top_fields] else NULL
+
+  # Step 5: Build the JSON specification
   json_spec <- list(
-    `$schema` = "glyph/v0.1",
+    `$schema` = "glyph/v0.2",
     width     = width %||% 600,
     height    = height %||% 400,
-    data      = list(values = df_to_records(enriched_data)),
+    data      = df_to_columns(top_data),
     marks     = resolved_marks,
     scales    = resolved_scales,
     coords    = spec$coords,
@@ -127,7 +154,7 @@ compile.glyph_layout <- function(spec, engine = "auto",
                              engine = engine, width = width, height = height)
 
   json_spec <- list(
-    `$schema`          = "glyph/v0.1",
+    `$schema`          = "glyph/v0.2",
     type               = "layout",
     layout_type        = spec$type,
     panels             = lapply(compiled_panels, function(c) c$spec),
@@ -301,44 +328,62 @@ resolve_mark <- function(mark, global_data, global_mappings, extra_cols = list()
   # Drop rows with NA in a mapped position aesthetic — better to omit a mark
   # than draw it at an invalid position — and warn how many/why, ggplot2-style.
   position_aes <- c("x", "y", "x2", "y2", "y_min", "y_max")
-  work_data <- drop_na_position_rows(work_data, encoding, position_aes, mark$id)
+  keep <- na_position_keep(work_data, encoding, position_aes, mark$id)
+  if (!is.null(keep) && !all(keep)) work_data <- work_data[keep, , drop = FALSE]
 
   mark_json <- list(
     type     = mark$type,
     encoding = encoding,
     style    = mark$style,
     id       = mark$id,
-    data     = list(values = df_to_records(work_data))
+    data     = df_to_columns(work_data)
   )
 
-  # Statistical marks (boxplot, violin, histogram, sina) replace their rows
-  # with computed summaries; see R/stats.R.
+  # A mark drawing the plot's own rows doesn't send them again: it names the
+  # columns it uses (in its own order) and, if rows were dropped for missing
+  # values, which rows it keeps. compile.glyph_spec() sends those columns
+  # once, at the top level, and the renderer rebuilds this mark's rows.
+  if (uses_global_data && is.null(mark$stat) && !is.null(work_data)) {
+    mark_json$data <- list(
+      from   = "plot",
+      fields = I(names(work_data)),
+      rows   = if (is.null(keep) || all(keep)) NULL else I(which(keep) - 1L)
+    )
+  }
+
+  # Statistical marks (boxplot, violin, histogram, sina, polygon) replace
+  # their rows with computed summaries; see R/stats.R. Sina keeps one record
+  # per row, sent as columns like any other rows.
   if (!is.null(mark$stat)) {
     if (is.null(work_data)) work_data <- data.frame()
     st <- compute_stat(mark, work_data, encoding, facet_fields)
     mark_json$encoding <- st$encoding
-    mark_json$data <- list(values = st$records)
+    mark_json$data <- if (!is.null(st$frame)) df_to_columns(st$frame) else list(values = st$records)
     mark_json$stat <- st$stat
   }
 
-  list(mark_json = mark_json, enriched = enriched)
+  list(mark_json = mark_json, enriched = enriched, frame = work_data)
 }
 
-#' Drop rows with NA in any mapped position aesthetic and warn
+#' Find rows with NA in any mapped position aesthetic, and warn
+#' @return A logical vector, TRUE for the rows to keep, or NULL when there is
+#'   no data.
 #' @noRd
-drop_na_position_rows <- function(data, encoding, position_aes, mark_id) {
-  if (is.null(data) || nrow(data) == 0) return(data)
+na_position_keep <- function(data, encoding, position_aes, mark_id) {
+  if (is.null(data)) return(NULL)
+  keep <- rep(TRUE, nrow(data))
+  if (nrow(data) == 0) return(keep)
 
   pos_present <- intersect(position_aes, names(encoding))
   pos_fields <- lapply(pos_present, function(a) encoding[[a]]$field)
   names(pos_fields) <- pos_present
   pos_fields <- Filter(Negate(is.null), pos_fields)
-  if (length(pos_fields) == 0) return(data)
+  if (length(pos_fields) == 0) return(keep)
 
   na_flags <- lapply(pos_fields, function(f) is.na(data[[f]]))
   any_na <- Reduce(`|`, na_flags)
   n_dropped <- sum(any_na)
-  if (n_dropped == 0) return(data)
+  if (n_dropped == 0) return(keep)
 
   offending <- names(pos_fields)[vapply(na_flags, any, logical(1))]
   cli::cli_warn(c(
@@ -347,20 +392,34 @@ drop_na_position_rows <- function(data, encoding, position_aes, mark_id) {
       "({.field {offending}}) from mark {.val {mark_id}}."
     )
   ))
-  data[!any_na, , drop = FALSE]
+  !any_na
 }
 
-#' Convert a data.frame to a list of row-records
-#' @description htmlwidgets serializes embedded \code{x} payloads with
-#'   \code{jsonlite}'s \code{dataframe = "columns"} default, which would turn
-#'   a data.frame into one JSON object per column instead of one JSON object
-#'   per row. The D3 renderer expects an array of row objects (so it can call
-#'   \code{data.map(...)} etc.), so convert explicitly here rather than
-#'   relying on the data.frame passing through untouched.
+#' Convert a data.frame to the columns sent to the browser
+#' @description Data goes to the browser as one array per column, which
+#'   jsonlite serializes hundreds of times faster than one object per row. It
+#'   is a plain list, not a data.frame, so htmlwidgets can't reinterpret it,
+#'   and the renderer (inflateSpec() in glyph.js) turns it back into one
+#'   object per row before anything is drawn. A column of one value
+#'   serializes as a bare value rather than an array; the renderer allows for
+#'   that.
+#' @return \code{list(columns = <named list of column vectors>, n = <rows>)}
 #' @noRd
-df_to_records <- function(data) {
-  if (is.null(data) || nrow(data) == 0) return(list())
-  lapply(seq_len(nrow(data)), function(i) as.list(data[i, , drop = FALSE]))
+df_to_columns <- function(data) {
+  if (is.null(data)) return(list(columns = structure(list(), names = character()), n = 0L))
+  list(columns = as.list(data), n = nrow(data))
+}
+
+#' The fields marginals() reads from the plot's data: the first x and y
+#' mapping among the marks, as the renderer's getPanelField() picks them.
+#' @noRd
+marginal_fields <- function(layout, marks) {
+  if (!identical(layout$type, "marginals")) return(character())
+  first_field <- function(aes) {
+    for (m in marks) if (!is.null(m$encoding[[aes]]$field)) return(m$encoding[[aes]]$field)
+    NULL
+  }
+  c(first_field("x"), first_field("y"))
 }
 
 #' @noRd
