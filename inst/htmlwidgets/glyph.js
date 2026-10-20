@@ -1987,6 +1987,28 @@ function addClickSelect(selection, action, baseOpacity, markRegistry) {
 
 // ---- Brush ------------------------------------------------------------------
 
+// Escape clears every brush selection on the page, except while typing in a
+// text field. One listener for the page; brushes whose plot has been
+// redrawn away are dropped.
+const glyphBrushes = [];
+let glyphEscapeListening = false;
+function registerBrushForEscape(node, clear) {
+  for (let i = glyphBrushes.length - 1; i >= 0; i--) {
+    if (!glyphBrushes[i].node.isConnected) glyphBrushes.splice(i, 1);
+  }
+  glyphBrushes.push({ node, clear });
+  if (glyphEscapeListening) return;
+  glyphEscapeListening = true;
+  document.addEventListener("keydown", function(event) {
+    if (event.key !== "Escape" || event.defaultPrevented) return;
+    const t = event.target;
+    if (t && (t.isContentEditable || /^(input|textarea|select)$/i.test(t.tagName))) return;
+    glyphBrushes.forEach(b => {
+      if (b.node.isConnected && d3.brushSelection(b.node)) b.clear();
+    });
+  });
+}
+
 // `entries` are the registered marks that can be brushed (see registerMark):
 // each has a `brush` adapter with
 //   rowLevel  true when each element draws one row (points, sina)
@@ -2044,6 +2066,7 @@ function addBrush(g, entries, w, h, dragState, emitSelection) {
     })
     .on("brush end", function(event) {
       const selection = event.selection;
+      showClearButton(!!selection);
       if (!selection) {
         clearSelection();
 
@@ -2085,6 +2108,30 @@ function addBrush(g, entries, w, h, dragState, emitSelection) {
     });
 
   const brushG = g.append("g").attr("class", "brush").call(brush);
+
+  // "Clear selection" in the plot's controls bar, shown only while there is a
+  // selection. Clearing goes through the brush, so it restores every mark
+  // and tells linked panels, as a click inside the plot does.
+  const clearBrush = () => brush.move(brushG, null);
+  let clearButton = null;
+  function showClearButton(visible) {
+    if (!clearButton) {
+      if (!visible) return;
+      const svg = g.node().ownerSVGElement;
+      const host = svg && svg.parentNode;
+      if (!(host instanceof HTMLElement)) return;
+      const bar = controlsBar(host);
+      clearButton = controlButton("glyph-clear-selection");
+      clearButton.addEventListener("click", clearBrush);
+      bar.insertBefore(clearButton, bar.querySelector(".glyph-zoom-reset"));
+      setControlLabel(clearButton, "✕ Clear selection", "Clear the selection (Esc)");
+    } else if ((clearButton.style.display !== "none") === visible) {
+      return;
+    }
+    clearButton.style.display = visible ? "" : "none";
+    fitControls(clearButton.parentNode);
+  }
+  registerBrushForEscape(brushG.node(), clearBrush);
 
   // In pan mode the brush filter rejects the gesture outright, so no "end"
   // ever fires and the tap-forwarding above never runs — but the overlay is
@@ -2234,10 +2281,24 @@ function addZoom(svgNode, g, dragState) {
       return !event.button && !event.ctrlKey && dragModeOf(dragState, "pan") === "pan";
     })
     .on("zoom", function({ transform }) {
-      g.attr("transform", `${baseTransform} ${transform}`);
+      applyZoom.schedule(transform);
     });
 
+  // Every zoom event moves the whole plot group, which the browser then
+  // repaints with every mark in it, so apply only the latest transform, once
+  // per frame (see perFrame): wheel and pinch events can come faster than a
+  // large plot can be repainted.
+  const applyZoom = perFrame(transform => g.attr("transform", `${baseTransform} ${transform}`));
+
   svgSel.call(zoom);
+
+  // Zooming in or out by double-click and resetting are animated, but each
+  // frame of the animation repaints the whole plot; with many elements that
+  // is slow enough that the animation only adds delay, so large plots jump
+  // straight to the result.
+  const animate = (sel) => g.node().getElementsByTagName("*").length < 3000
+    ? sel.transition().duration(300) : sel;
+  const resetZoom = () => animate(svgSel).call(zoom.transform, d3.zoomIdentity);
 
   // d3-zoom's own double-click handler always zooms IN, with no built-in way
   // back out. If already zoomed in, reset to identity instead of zooming in
@@ -2255,10 +2316,10 @@ function addZoom(svgNode, g, dragState) {
     const current = d3.zoomTransform(node);
     const sel = d3.select(node);
     if (current.k > 1.01) {
-      sel.transition().duration(300).call(zoom.transform, d3.zoomIdentity);
+      animate(sel).call(zoom.transform, d3.zoomIdentity);
     } else {
       const center = pointerXY(event, node);
-      sel.transition().duration(300).call(zoom.scaleBy, 2, center);
+      animate(sel).call(zoom.scaleBy, 2, center);
     }
   }
 
@@ -2357,59 +2418,92 @@ function addZoom(svgNode, g, dragState) {
       }
     });
 
-  addZoomControls(svgNode, zoom, svgSel, dragState);
+  addZoomControls(svgNode, zoom, svgSel, dragState, resetZoom);
 }
 
-// Small always-visible controls in the plot's top-right corner: a reset for
-// a zoomed/panned plot (the only way back out on a touch device, which has
-// no scroll wheel to zoom back out with) and — only when a drag is ambiguous
-// because both zoom and brush are enabled — a toggle for what a drag does.
-function addZoomControls(svgNode, zoom, svgSel, dragState) {
-  const hostEl = svgNode.parentNode;
-  if (!hostEl || hostEl.querySelector(".glyph-controls")) return;
-  if (getComputedStyle(hostEl).position === "static") hostEl.style.position = "relative";
+// ---- Controls bar -----------------------------------------------------------
+//
+// Small always-visible controls in the plot's top-right corner, shared by
+// zoom (drag mode, reset) and the brush (clear selection). Created on first
+// use, so a plot with neither has none.
+const CONTROL_BUTTON_CSS = "font-size:11px;line-height:1.2;padding:2px 8px;cursor:pointer;" +
+  "background:rgba(255,255,255,0.9);border:1px solid #ccc;border-radius:3px;color:#333;";
 
-  const bar = document.createElement("div");
+function controlsBar(hostEl) {
+  let bar = [...hostEl.children].find(c => c.classList.contains("glyph-controls"));
+  if (bar) return bar;
+  if (getComputedStyle(hostEl).position === "static") hostEl.style.position = "relative";
+  bar = document.createElement("div");
   bar.className = "glyph-controls";
   bar.style.cssText = "position:absolute;top:4px;right:4px;z-index:2;display:flex;gap:4px;";
+  hostEl.appendChild(bar);
+  return bar;
+}
 
-  const btnCss = "font-size:11px;line-height:1.2;padding:2px 8px;cursor:pointer;" +
-    "background:rgba(255,255,255,0.9);border:1px solid #ccc;border-radius:3px;color:#333;";
+function controlButton(className) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = className;
+  button.style.cssText = CONTROL_BUTTON_CSS;
+  return button;
+}
+
+// A button's label in full, and as just its symbol for when the bar doesn't
+// fit; the full label stays in its tooltip and aria-label.
+function setControlLabel(button, label, title) {
+  button.dataset.label = label;
+  button.dataset.short = label.split(" ")[0];
+  button.title = title;
+  button.setAttribute("aria-label", title);
+  const bar = button.parentNode;
+  button.textContent = bar && bar.dataset.compact ? button.dataset.short : label;
+}
+
+// Shows full labels if they fit the plot's width, and symbols only if not
+// (small facet panels, a narrow Viewer pane).
+function fitControls(bar) {
+  const host = bar && bar.parentNode;
+  if (!host || !host.clientWidth) return;
+  const buttons = [...bar.querySelectorAll("button")];
+  delete bar.dataset.compact;
+  buttons.forEach(b => { if (b.dataset.label) b.textContent = b.dataset.label; });
+  if (bar.offsetWidth > host.clientWidth - 8) {
+    bar.dataset.compact = "true";
+    buttons.forEach(b => { if (b.dataset.short) b.textContent = b.dataset.short; });
+  }
+}
+
+// A reset for a zoomed/panned plot (the only way back out on a touch device,
+// which has no scroll wheel to zoom back out with) and — only when a drag is
+// ambiguous because both zoom and brush are enabled — a toggle for what a
+// drag does.
+function addZoomControls(svgNode, zoom, svgSel, dragState, resetZoom) {
+  const hostEl = svgNode.parentNode;
+  if (!hostEl || !(hostEl instanceof HTMLElement)) return;
+  const bar = controlsBar(hostEl);
 
   if (dragState && dragState.brushEnabled && dragState.zoomEnabled) {
-    const toggle = document.createElement("button");
-    toggle.type = "button";
-    toggle.className = "glyph-drag-mode";
-    toggle.style.cssText = btnCss;
-
+    const toggle = controlButton("glyph-drag-mode");
     const sync = (mode) => {
-      toggle.textContent = mode === "brush" ? "▨ Drag: select" : "✋ Drag: pan";
-      toggle.title = mode === "brush"
-        ? "Dragging selects points. Click to switch to panning."
-        : "Dragging pans the plot. Click to switch to selecting.";
-      toggle.setAttribute("aria-label", toggle.title);
+      setControlLabel(toggle, mode === "brush" ? "▨ Drag: select" : "✋ Drag: pan",
+        mode === "brush"
+          ? "Dragging selects points. Click to switch to panning."
+          : "Dragging pans the plot. Click to switch to selecting.");
       toggle.setAttribute("aria-pressed", mode === "brush" ? "true" : "false");
     };
     dragState.listeners.push(sync);
-    sync(dragState.mode);
-
     toggle.addEventListener("click", () => {
       setDragMode(dragState, dragState.mode === "brush" ? "pan" : "brush");
     });
-    bar.appendChild(toggle);
+    bar.insertBefore(toggle, bar.firstChild);
+    sync(dragState.mode);
   }
 
-  const reset = document.createElement("button");
-  reset.type = "button";
-  reset.className = "glyph-zoom-reset";
-  reset.textContent = "⟲ Reset zoom";
-  reset.style.cssText = btnCss;
-  reset.addEventListener("click", () => {
-    svgSel.transition().duration(300).call(zoom.transform, d3.zoomIdentity);
-  });
+  const reset = controlButton("glyph-zoom-reset");
+  reset.addEventListener("click", resetZoom);
   bar.appendChild(reset);
-
-  hostEl.appendChild(bar);
+  setControlLabel(reset, "⟲ Reset zoom", "Reset zoom");
+  fitControls(bar);
 }
 
 // ---- Nearest point (for line charts) ----------------------------------------
