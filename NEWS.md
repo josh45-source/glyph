@@ -1,5 +1,19 @@
 # glyph (development version)
 
+* New "Clear selection" button in a plot's controls bar, shown while a
+  brush selection exists (#26). Clicking or tapping it clears the selection
+  and restores every mark, including marks in panels linked with
+  `compose(linked_selections = TRUE)`. Pressing Escape clears brush
+  selections too, unless you are typing in a text field. Plots with a brush
+  but no zoom now get a controls bar for the button. When the controls don't
+  fit the plot's width, as in small facet panels, they show just their
+  symbols, with the full label in their tooltip.
+* "Reset zoom" and double-click zooming no longer lag on large plots (#25).
+  They jump straight to the result instead of animating when the plot has
+  3,000 or more elements, since each frame of the animation redrew every
+  point. At 15,000 points a reset now takes about 50ms instead of 470ms.
+  Each zoom step still redraws every point, which canvas drawing (#20) is
+  meant to fix.
 * Tooltips no longer fall behind the pointer over dense areas of a large
   point plot (#23). With brushing on, each pointer move used to search every
   point for the nearest one and move the tooltip, and in WebKit moving the
