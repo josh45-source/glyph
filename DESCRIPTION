@@ -30,7 +30,10 @@ Imports:
 Suggests:
     testthat (>= 3.0.0),
     knitr,
-    rmarkdown
+    rmarkdown,
+    chromote,
+    htmltools,
+    withr
 VignetteBuilder: knitr
 URL: https://github.com/josh45-source/glyph, https://josh45-source.github.io/glyph/
 BugReports: https://github.com/josh45-source/glyph/issues
