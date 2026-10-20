@@ -5,7 +5,7 @@
 # cut(), and check that the marks work with computed mappings, NA dropping,
 # facets and compose(). Rendering in a browser is checked separately.
 
-compiled_mark <- function(spec, i = 1) compile(spec)$spec$marks[[i]]
+compiled_mark <- function(spec, i = 1) inflated(compile(spec))$marks[[i]]
 records <- function(mark) mark$data$values
 pluck_num <- function(recs, name) vapply(recs, function(r) as.numeric(r[[name]]), numeric(1))
 

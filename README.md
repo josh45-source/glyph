@@ -163,12 +163,26 @@ brushing and crossfilter; entrance and keyframe animation; `compose()`,
 `facet()`, `marginals()` and `inset()`; theme tokens and presets; and JSON
 and Vega-Lite export.
 
+Large plots are limited by the browser, not by R. A 100,000-point scatter
+plot takes about 0.1s to compile and under half a second to reach the
+Viewer, but every point is an SVG element, so the browser slows down as
+points are added. Point plots respond to hover, brushing and zoom in under
+0.1s up to about 10,000 points. At 15,000 points a step takes about 0.1s, at
+50,000 about half a second, and at 100,000 about a second, and the plot
+takes about 2s to draw. Zooming a 100,000-point line takes about 0.8s per
+step. Boxplots and histograms send only their summaries, so at 100,000 rows
+they draw in under 0.1s and respond within a frame. Exporting a
+100,000-point plot to a single HTML file takes several seconds, most of it
+in pandoc. These numbers come from Chromium on a 4-core machine; the details
+are in [#8](https://github.com/josh45-source/glyph/issues/8).
+
 Not done yet:
 
 - Statistical transforms as separate pipeline steps (smooth, density, bin,
   aggregate)
-- A plan for medium and large datasets
-  ([#8](https://github.com/josh45-source/glyph/issues/8))
+- Drawing point and sina marks on a canvas above a row threshold
+  ([#20](https://github.com/josh45-source/glyph/issues/20)), and a hexbin
+  mark ([#21](https://github.com/josh45-source/glyph/issues/21))
 - A legend drawn by default for colour scales. Today a legend appears only
   when you add one with `selection("legend", type = "legend")`.
 - Keyboard accessibility

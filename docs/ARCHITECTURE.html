@@ -123,7 +123,7 @@ padding    -&gt;  all margins</code></pre>
 <h2 id="known-gaps">Known gaps<a class="anchor" aria-label="anchor" href="#known-gaps"></a></h2>
 <p>Statistical transforms. There are none yet. The plan is to start with explicit <code>transform_*()</code> functions for smoothing, binning, density and aggregation.</p>
 <p>Extending glyph. A new mark needs code in both R and the JavaScript renderer, and that process is not documented yet (<a href="https://github.com/josh45-source/glyph/issues/9" class="external-link">#9</a>). For anything glyph can’t draw, <code><a href="reference/to_vegalite.html">to_vegalite()</a></code> gives a starting point in Vega-Lite.</p>
-<p>Larger datasets. Every mark is an SVG element, and there is no density rendering or way to switch off costly features (<a href="https://github.com/josh45-source/glyph/issues/8" class="external-link">#8</a>).</p>
+<p>Larger datasets. Plot data goes to the browser once, as one array per column, and statistical marks send only their summaries, so compiling is quick at any size (<a href="https://github.com/josh45-source/glyph/issues/8" class="external-link">#8</a>). Every point is still an SVG element, which slows interaction above about 10,000 points. Canvas drawing for point and sina marks (<a href="https://github.com/josh45-source/glyph/issues/20" class="external-link">#20</a>) and a hexbin mark (<a href="https://github.com/josh45-source/glyph/issues/21" class="external-link">#21</a>) are planned.</p>
 <p>Static output. <code><a href="reference/export.html">export()</a></code> writes HTML and JSON only. Static SVG, PNG and PDF are planned through headless Chrome, which would keep static output identical to what the browser draws.</p>
 </div>
 <div class="section level2">

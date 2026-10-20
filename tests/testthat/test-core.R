@@ -341,7 +341,7 @@ test_that("compile() produces valid JSON", {
   expect_true(nchar(compiled$json) > 100)
 
   parsed <- jsonlite::fromJSON(compiled$json)
-  expect_equal(parsed[["$schema"]], "glyph/v0.1")
+  expect_equal(parsed[["$schema"]], "glyph/v0.2")
   expect_equal(parsed$width, 600)
   expect_equal(parsed$height, 400)
 })
@@ -403,7 +403,7 @@ test_that("export() to JSON works", {
   result <- export(spec, tmp)
   expect_true(file.exists(tmp))
   content <- jsonlite::fromJSON(readLines(tmp, warn = FALSE))
-  expect_equal(content[["$schema"]], "glyph/v0.1")
+  expect_equal(content[["$schema"]], "glyph/v0.2")
 })
 
 test_that("export() to HTML is self-contained when pandoc is available", {
@@ -563,7 +563,7 @@ test_that("a computed numeric mapping (log(wt)) is evaluated, not dropped", {
   expect_equal(enc$x$label, "log(wt)")
 
   # The generated column actually holds log(wt) values, not zeros.
-  mark_values <- compiled$spec$marks[[1]]$data$values
+  mark_values <- inflated(compiled)$marks[[1]]$data$values
   expect_equal(mark_values[[1]][[enc$x$field]], log(mtcars$wt[1]))
 
   # Expression text becomes the default axis label.
@@ -592,7 +592,7 @@ test_that("computed mapping columns are folded into the top-level compiled data"
   spec <- glyph(mtcars, x = log(wt), y = mpg) |> mark_point()
   compiled <- compile(spec)
   field <- compiled$spec$marks[[1]]$encoding$x$field
-  top_level_row1 <- compiled$spec$data$values[[1]]
+  top_level_row1 <- inflated(compiled)$data$values[[1]]
   expect_true(field %in% names(top_level_row1))
 })
 
@@ -618,7 +618,7 @@ test_that("rows with NA in a mapped position aesthetic are dropped with a warnin
   spec <- glyph(df, x = wt, y = mpg) |> mark_point()
 
   expect_warning(compiled <- compile(spec), "Removed 2 row")
-  mark_values <- compiled$spec$marks[[1]]$data$values
+  mark_values <- inflated(compiled)$marks[[1]]$data$values
   expect_equal(length(mark_values), nrow(df) - 2)
 })
 
@@ -632,7 +632,7 @@ test_that("the NA warning names the offending aesthetic", {
 test_that("no warning and no rows dropped when there are no NAs", {
   spec <- glyph(mtcars, x = wt, y = mpg) |> mark_point()
   expect_no_warning(compiled <- compile(spec))
-  expect_equal(length(compiled$spec$marks[[1]]$data$values), nrow(mtcars))
+  expect_equal(length(inflated(compiled)$marks[[1]]$data$values), nrow(mtcars))
 })
 
 test_that("NA-dropping is per-mark, not global", {
@@ -644,7 +644,7 @@ test_that("NA-dropping is per-mark, not global", {
 
   expect_warning(compiled <- compile(spec), "Removed 1 row")
   # The bar mark doesn't map wt at all, so none of its rows are dropped.
-  bar_values <- compiled$spec$marks[[2]]$data$values
+  bar_values <- inflated(compiled)$marks[[2]]$data$values
   expect_equal(length(bar_values), nrow(df))
 })
 
@@ -657,7 +657,7 @@ test_that("facet() on a plain column is unaffected", {
   compiled <- compile(spec)
 
   expect_equal(compiled$spec$facets$cols, "cyl")
-  top_row1 <- compiled$spec$data$values[[1]]
+  top_row1 <- inflated(compiled)$data$values[[1]]
   expect_true("cyl" %in% names(top_row1))
 })
 
@@ -676,8 +676,8 @@ test_that("facet() on a computed expression is evaluated into a real field", {
   # resolved data (used to slice that mark's rows per facet cell) —
   # otherwise faceting would work for the panel grid but marks within each
   # panel would show every row again.
-  top_row1 <- compiled$spec$data$values[[1]]
-  mark_row1 <- compiled$spec$marks[[1]]$data$values[[1]]
+  top_row1 <- inflated(compiled)$data$values[[1]]
+  mark_row1 <- inflated(compiled)$marks[[1]]$data$values[[1]]
   expect_true(facet_field %in% names(top_row1))
   expect_true(facet_field %in% names(mark_row1))
 
@@ -695,7 +695,7 @@ test_that("facet() on rows and cols can both be computed expressions", {
   expect_false(identical(compiled$spec$facets$cols, "factor(cyl)"))
   expect_false(identical(compiled$spec$facets$rows, compiled$spec$facets$cols))
 
-  mark_row1 <- compiled$spec$marks[[1]]$data$values[[1]]
+  mark_row1 <- inflated(compiled)$marks[[1]]$data$values[[1]]
   expect_true(compiled$spec$facets$rows %in% names(mark_row1))
   expect_true(compiled$spec$facets$cols %in% names(mark_row1))
 })
@@ -715,7 +715,7 @@ test_that("a computed mapping still resolves correctly when facet() is also used
   compiled <- compile(spec)
 
   enc <- compiled$spec$marks[[1]]$encoding
-  mark_row1 <- compiled$spec$marks[[1]]$data$values[[1]]
+  mark_row1 <- inflated(compiled)$marks[[1]]$data$values[[1]]
   expect_equal(mark_row1[[enc$x$field]], log(mtcars$wt[1]))
   # The mark's own data must also carry the facet field, so each facet
   # panel can filter this mark's (computed) rows by facet value.
@@ -730,7 +730,7 @@ test_that("NA-dropping still applies to a mark's resolved data when facet() is a
     facet(cols = cyl)
 
   expect_warning(compiled <- compile(spec), "Removed 2 row")
-  mark_values <- compiled$spec$marks[[1]]$data$values
+  mark_values <- inflated(compiled)$marks[[1]]$data$values
   expect_equal(length(mark_values), nrow(df) - 2)
   # Every remaining row must still carry the facet field.
   expect_true(all(vapply(mark_values, function(r) "cyl" %in% names(r), logical(1))))
@@ -745,7 +745,7 @@ test_that("NA-dropping and a computed facet expression combine correctly", {
 
   expect_warning(compiled <- compile(spec), "Removed 1 row")
   facet_field <- compiled$spec$facets$cols
-  mark_values <- compiled$spec$marks[[1]]$data$values
+  mark_values <- inflated(compiled)$marks[[1]]$data$values
   expect_equal(length(mark_values), nrow(df) - 1)
   expect_true(all(vapply(mark_values, function(r) facet_field %in% names(r), logical(1))))
 })

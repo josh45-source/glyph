@@ -152,9 +152,13 @@ renderer, and that process is not documented yet
 ([#9](https://github.com/josh45-source/glyph/issues/9)). For anything glyph
 can't draw, `to_vegalite()` gives a starting point in Vega-Lite.
 
-Larger datasets. Every mark is an SVG element, and there is no density
-rendering or way to switch off costly features
-([#8](https://github.com/josh45-source/glyph/issues/8)).
+Larger datasets. Plot data goes to the browser once, as one array per
+column, and statistical marks send only their summaries, so compiling is
+quick at any size ([#8](https://github.com/josh45-source/glyph/issues/8)).
+Every point is still an SVG element, which slows interaction above about
+10,000 points. Canvas drawing for point and sina marks
+([#20](https://github.com/josh45-source/glyph/issues/20)) and a hexbin mark
+([#21](https://github.com/josh45-source/glyph/issues/21)) are planned.
 
 Static output. `export()` writes HTML and JSON only. Static SVG, PNG and PDF
 are planned through headless Chrome, which would keep static output
