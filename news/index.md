@@ -2,6 +2,16 @@
 
 ## glyph (development version)
 
+- New article, “Adding a custom mark”
+  ([`vignette("custom-marks")`](https://josh45-source.github.io/glyph/articles/custom-marks.md)),
+  walks through adding a mark type end to end with a worked example
+  ([\#9](https://github.com/josh45-source/glyph/issues/9)). It covers
+  the R function and `add_mark()`, how mappings are resolved when the
+  plot is compiled, how data reaches the browser, the drawing code in
+  `glyph.js`, axes, tooltips, hover, brushing, fitting the container,
+  tests, and marks that summarise data. It also says plainly that adding
+  a mark means editing glyph’s source, and what would need to change for
+  other packages to add marks.
 - Bar and area charts now start their value axis at zero
   ([\#29](https://github.com/josh45-source/glyph/issues/29)). The y axis
   used to start at the smallest value, so the smallest bar had no height
