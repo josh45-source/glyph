@@ -31,6 +31,8 @@ navbar:
       menu:
       - text: "Getting Started"
         href: articles/getting-started.html
+      - text: "Adding a custom mark"
+        href: articles/custom-marks.html
     github:
       icon: fa-github
       href: https://github.com/josh45-source/glyph
@@ -121,6 +123,10 @@ articles:
   navbar: ~
   contents:
   - getting-started
+
+- title: Extending glyph
+  contents:
+  - custom-marks
 
 footer:
   structure:
