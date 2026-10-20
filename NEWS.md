@@ -1,5 +1,14 @@
 # glyph (development version)
 
+* New browser tests (#28) draw plots in headless Chrome through chromote and
+  check what was drawn: that plots draw at all, that slide-animated bars end
+  at their full height, that the x axis stays visible in a wide, short
+  container, box and histogram geometry, polygon vertices, one tooltip per
+  widget after repeated resizes, widgets in knitted documents, and the
+  "Clear selection" and "Reset zoom" buttons. They are skipped on CRAN and
+  wherever chromote or Chrome isn't available, and a GitHub Actions
+  workflow runs them on every pull request. chromote, htmltools and withr
+  are new suggested packages.
 * New "Clear selection" button in a plot's controls bar, shown while a
   brush selection exists (#26). Clicking or tapping it clears the selection
   and restores every mark, including marks in panels linked with

@@ -1,0 +1,41 @@
+# Runs the browser tests (tests/testthat/test-browser.R), which draw plots in
+# headless Chrome through chromote. They're skipped on CRAN and wherever
+# Chrome isn't available, so this is where they actually run.
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+name: browser-tests.yaml
+
+permissions: read-all
+
+jobs:
+  browser-tests:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      NOT_CRAN: true
+      # Fail rather than skip if chromote or Chrome is missing.
+      GLYPH_REQUIRE_BROWSER: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: r-lib/actions/setup-pandoc@v2
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::chromote, local::.
+
+      - name: Run browser tests
+        run: |
+          start <- Sys.time()
+          testthat::test_local(filter = "browser", reporter = "progress", stop_on_failure = TRUE)
+          cat(sprintf("\nBrowser tests took %.1f seconds\n", as.numeric(Sys.time() - start, units = "secs")))
+        shell: Rscript {0}
