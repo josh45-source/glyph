@@ -2,6 +2,23 @@
 
 ## glyph (development version)
 
+- Tooltips no longer fall behind the pointer over dense areas of a large
+  point plot ([\#23](https://github.com/josh45-source/glyph/issues/23)).
+  With brushing on, each pointer move used to search every point for the
+  nearest one and move the tooltip, and in WebKit moving the tooltip
+  repainted the plot underneath it. At 15,000 points one move took about
+  half a second, so moves queued up and the tooltip kept changing for
+  over a minute after the pointer stopped. Points are now found through
+  a quadtree, pointer moves are handled at most once per frame for the
+  latest position, and the tooltip is drawn on its own layer so moving
+  it doesn’t repaint the plot. The same points are found as before.
+- Redrawing a plot no longer leaves old tooltips in the page. Every
+  resize redraws the plot, and fitting it to its container can take up
+  to three draws, and each draw added another tooltip for every mark
+  with one, plus click listeners that kept the replaced plot in memory.
+  A faceted plot resized ten times left 144 tooltips behind, and a
+  tooltip showing when the plot was redrawn could stay on screen. Each
+  widget now has one tooltip, which a redraw hides and reuses.
 - Plots with many rows are much quicker to prepare
   ([\#8](https://github.com/josh45-source/glyph/issues/8)). Plot data
   now goes to the browser as one array per column instead of one object
