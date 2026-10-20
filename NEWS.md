@@ -1,5 +1,14 @@
 # glyph (development version)
 
+* Tooltips no longer fall behind the pointer over dense areas of a large
+  point plot (#23). With brushing on, each pointer move used to search every
+  point for the nearest one and move the tooltip, and in WebKit moving the
+  tooltip repainted the plot underneath it. At 15,000 points one move took
+  about half a second, so moves queued up and the tooltip kept changing for
+  over a minute after the pointer stopped. Points are now found through a
+  quadtree, pointer moves are handled at most once per frame for the latest
+  position, and the tooltip is drawn on its own layer so moving it doesn't
+  repaint the plot. The same points are found as before.
 * Plots with many rows are much quicker to prepare (#8). Plot data now goes
   to the browser as one array per column instead of one object per row, and
   is turned back into rows in the browser before anything is drawn. Each row

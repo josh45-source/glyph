@@ -875,7 +875,8 @@ function drawPoints(g, data, enc, scales, style, w, h, interact, theme, markRegi
   const slotWidth = groupSlotWidth(scales, enc, 40);
   const px = d => xPos(scales, enc, d, slotWidth);
   const py = d => yPos(scales, enc, d);
-  const points = g.append("g").attr("class", cls || "marks-point")
+  const layer = g.append("g").attr("class", cls || "marks-point");
+  const points = layer
     .selectAll("circle")
     .data(data)
     .join("circle")
@@ -887,11 +888,16 @@ function drawPoints(g, data, enc, scales, style, w, h, interact, theme, markRegi
     .attr("stroke", "#fff")
     .attr("stroke-width", 1);
 
+  // Keyframe animation rebinds the points' data (see applyMorphAnimation),
+  // and reaches the finder through the layer to rebuild it.
+  const finder = pointFinder(points, px, py);
+  layer.node().__glyphFinder = finder;
+
   registerMark(markRegistry, points, baseOpacity, {
     // A point is hit by a brush when its centre is inside the brushed area.
     brush: {
       rowLevel: true,
-      nearest: (mx, my, tolerance) => nearestPointWithin(points, px, py, mx, my, tolerance),
+      nearest: (mx, my, tolerance) => finder.nearest(mx, my, tolerance),
       hit: (d, i, node, [[x0, y0], [x1, y1]]) => {
         const cx = px(d), cy = py(d);
         return cx >= x0 && cx <= x1 && cy >= y0 && cy <= y1;
@@ -1704,13 +1710,72 @@ function pointerXY(event, node) {
 // space as scales.x/scales.y — within `tolerance` pixels. Used to forward
 // pointer events that land on a brush's overlay (which sits on top of the
 // marks so a drag can start anywhere) back to the mark underneath.
-function nearestPointWithin(points, px, py, mx, my, tolerance) {
-  let nearest = null, nearestDist = Infinity;
-  points.each(function(d) {
-    const dist = Math.hypot(px(d) - mx, py(d) - my);
-    if (dist < nearestDist) { nearestDist = dist; nearest = this; }
-  });
-  return (nearest && nearestDist < tolerance) ? nearest : null;
+//
+// The points go into a d3.quadtree, built on the first lookup, so a lookup
+// only looks at the points near the pointer instead of all of them. Zooming
+// transforms the whole plot group, so positions in its own coordinates don't
+// change and the tree stays valid; a redraw builds a new finder, and
+// invalidate() makes the next lookup rebuild it after the points' data
+// changes (keyframe animation). When several points are equally near, the
+// first in drawing order wins, as before.
+function pointFinder(points, px, py) {
+  let tree = null, nodes = null, xs = null, ys = null;
+
+  function build() {
+    nodes = points.nodes();
+    xs = new Float64Array(nodes.length);
+    ys = new Float64Array(nodes.length);
+    nodes.forEach((node, i) => { xs[i] = px(node.__data__); ys[i] = py(node.__data__); });
+    tree = d3.quadtree(d3.range(nodes.length), i => xs[i], i => ys[i]);
+  }
+
+  return {
+    nearest(mx, my, tolerance) {
+      if (!tree) build();
+      let best = -1, bestDist = tolerance;
+      tree.visit((node, x0, y0, x1, y1) => {
+        // Skip quadrants farther away than the best point so far.
+        const dx = Math.max(x0 - mx, 0, mx - x1), dy = Math.max(y0 - my, 0, my - y1);
+        if (Math.hypot(dx, dy) > bestDist) return true;
+        if (!node.length) {
+          do {
+            const i = node.data;
+            const dist = Math.hypot(xs[i] - mx, ys[i] - my);
+            if (dist < bestDist || (dist === bestDist && best >= 0 && i < best)) { best = i; bestDist = dist; }
+          } while ((node = node.next));
+        }
+        return false;
+      });
+      return best >= 0 ? nodes[best] : null;
+    },
+    invalidate() { tree = null; }
+  };
+}
+
+// Calls `update` with the latest of the values passed to schedule(), at most
+// once per animation frame, so pointer moves that arrive faster than the page
+// can respond replace each other instead of queueing up. cancel() drops a
+// pending update.
+function perFrame(update) {
+  let pending = null, frame = null;
+  return {
+    schedule(value) {
+      pending = value;
+      if (frame === null) {
+        frame = requestAnimationFrame(() => {
+          frame = null;
+          const v = pending;
+          pending = null;
+          update(v);
+        });
+      }
+    },
+    cancel() {
+      if (frame !== null) cancelAnimationFrame(frame);
+      frame = null;
+      pending = null;
+    }
+  };
 }
 
 // ---- Drag mode (zoom vs brush) ----------------------------------------------
@@ -1765,6 +1830,10 @@ function addTooltip(selection, data, enc, tooltipConfig, theme, autoText) {
     .style("font-family", theme.font || "system-ui")
     .style("box-shadow", "0 2px 8px rgba(0,0,0,0.15)")
     .style("pointer-events", "none")
+    // Its own compositing layer, so moving it doesn't make the browser
+    // repaint the plot underneath. In WebKit that repaint takes longer the
+    // more points there are: about half a second per move at 15,000 points.
+    .style("will-change", "transform")
     .style("opacity", 0);
 
   function renderText(d) {
@@ -2052,28 +2121,32 @@ function addBrush(g, entries, w, h, dragState, emitSelection) {
   // browsers, ending in a mouseout that would hide the tooltip the tap just
   // opened. Ignore mouse hover for a moment after any touch.
   const isSyntheticFromTouch = () => Date.now() - lastTouchAt < 600;
+  // Only the latest pointer position is handled, once per frame (see
+  // perFrame): in a dense area every move reaches a different point and
+  // moves its tooltip, and handling each move in turn fell behind the
+  // pointer.
+  const hover = perFrame(({ clientX, clientY }) => {
+    const [mx, my] = d3.pointer({ clientX, clientY }, g.node());
+    const nearest = nearestElement(mx, my);
+    if (nearest !== hoveredNode) {
+      if (hoveredNode) hoveredNode.dispatchEvent(new MouseEvent("mouseout", { bubbles: true }));
+      hoveredNode = nearest;
+      if (hoveredNode) {
+        hoveredNode.dispatchEvent(new MouseEvent("mouseover", { bubbles: true, clientX, clientY }));
+      }
+    }
+    if (hoveredNode) {
+      hoveredNode.dispatchEvent(new MouseEvent("mousemove", { bubbles: true, clientX, clientY }));
+    }
+  });
   brushG
     .on("mousemove.glyph-hover-forward", function(event) {
       if (event.buttons || isSyntheticFromTouch()) return;
-      const [mx, my] = pointerXY(event, g.node());
-      const nearest = nearestElement(mx, my);
-      if (nearest !== hoveredNode) {
-        if (hoveredNode) hoveredNode.dispatchEvent(new MouseEvent("mouseout", { bubbles: true }));
-        hoveredNode = nearest;
-        if (hoveredNode) {
-          hoveredNode.dispatchEvent(new MouseEvent("mouseover", {
-            bubbles: true, clientX: event.clientX, clientY: event.clientY
-          }));
-        }
-      }
-      if (hoveredNode) {
-        hoveredNode.dispatchEvent(new MouseEvent("mousemove", {
-          bubbles: true, clientX: event.clientX, clientY: event.clientY
-        }));
-      }
+      hover.schedule({ clientX: event.clientX, clientY: event.clientY });
     })
     .on("mouseleave.glyph-hover-forward", function() {
       if (isSyntheticFromTouch()) return;
+      hover.cancel();
       if (hoveredNode) {
         hoveredNode.dispatchEvent(new MouseEvent("mouseout", { bubbles: true }));
         hoveredNode = null;
@@ -2318,24 +2391,32 @@ function addNearestInteraction(g, data, enc, scales, interact, theme, w, h) {
 
   const bisect = d3.bisector(d => getVal(d, enc.x)).center;
 
-  g.append("rect")
+  const overlay = g.append("rect")
     .attr("class", "overlay")
     .attr("width", w)
     .attr("height", h)
     .attr("fill", "none")
-    .attr("pointer-events", "all")
-    .on("mousemove", function(event) {
-      const [mx] = d3.pointer(event);
-      const x0 = scales.x.invert(mx);
-      const i = bisect(data, x0);
-      const d = data[i];
-      if (!d) return;
+    .attr("pointer-events", "all");
 
-      dot.attr("cx", scales.x(getVal(d, enc.x)))
-        .attr("cy", scales.y(getVal(d, enc.y)))
-        .style("opacity", 1);
+  // At most one update per frame, for the latest pointer position.
+  const move = perFrame(({ clientX, clientY }) => {
+    const [mx] = d3.pointer({ clientX, clientY }, overlay.node());
+    const x0 = scales.x.invert(mx);
+    const i = bisect(data, x0);
+    const d = data[i];
+    if (!d) return;
+
+    dot.attr("cx", scales.x(getVal(d, enc.x)))
+      .attr("cy", scales.y(getVal(d, enc.y)))
+      .style("opacity", 1);
+  });
+
+  overlay
+    .on("mousemove", function(event) {
+      move.schedule({ clientX: event.clientX, clientY: event.clientY });
     })
     .on("mouseout", function() {
+      move.cancel();
       dot.style("opacity", 0);
     });
 }
@@ -2444,6 +2525,7 @@ function applyMorphAnimation(g, scales, spec, animConfig, data, theme, duration,
       .attr("opacity", style.opacity || 0.8);
 
     frameLabel.text(`${byField} = ${key}`);
+    if (markLayer.node().__glyphFinder) markLayer.node().__glyphFinder.invalidate();
   }
 
   renderFrame();
