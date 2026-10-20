@@ -1811,23 +1811,45 @@ function dragModeOf(dragState, fallback) {
 
 // ---- Tooltip ----------------------------------------------------------------
 
-let glyphTooltipCounter = 0;
+let glyphListenerCounter = 0;
+const glyphDocumentListeners = [];
 
-// `autoText`, when given, writes the text of an automatic (`tooltip = TRUE`)
-// tooltip; statistical marks use it to show their summary statistics.
-function addTooltip(selection, data, enc, tooltipConfig, theme, autoText) {
-  // Unique per call so each mark's document-level dismiss listener (below)
-  // doesn't overwrite another mark's when a plot has more than one
-  // tooltip-enabled mark.
-  const ns = "glyph-tooltip-" + (glyphTooltipCounter++);
-  const tooltip = d3.select("body").append("div")
+// Adds a click/touchend listener on document on behalf of `node`, part of a
+// plot. A redraw replaces the plot without telling anything, so first drop
+// the listeners whose element has left the page; otherwise each redraw adds
+// another listener that keeps the replaced plot in memory.
+function onDocumentTap(node, listener) {
+  for (let i = glyphDocumentListeners.length - 1; i >= 0; i--) {
+    const l = glyphDocumentListeners[i];
+    if (!l.node.isConnected) {
+      d3.select(document).on(l.typenames, null);
+      glyphDocumentListeners.splice(i, 1);
+    }
+  }
+  const ns = "glyph-" + (glyphListenerCounter++);
+  const typenames = `click.${ns} touchend.${ns}`;
+  d3.select(document).on(typenames, listener);
+  glyphDocumentListeners.push({ node, typenames });
+}
+
+// The widget's tooltip: one per widget, shared by its marks and kept across
+// redraws. Every resize redraws the whole plot (and fitting it to its
+// container can take up to three draws), and each draw used to add another
+// tooltip to the page, with a document-level listener holding on to the
+// marks it replaced.
+function widgetTooltip(selection) {
+  const node = selection.node();
+  const host = (node && node.closest && node.closest(".html-widget")) || document.body;
+  let tip = host.__glyphTooltip;
+  // A redraw removes the element the tooltip was showing for, so hide it.
+  if (tip && tip.node().isConnected) return tip.style("opacity", 0);
+
+  tip = host.__glyphTooltip = d3.select("body").append("div")
+    .attr("class", "glyph-tooltip")
     .style("position", "absolute")
-    .style("background", theme.fg === "#e0e0e0" ? "#333" : "#fff")
-    .style("color", theme.fg === "#e0e0e0" ? "#fff" : "#333")
     .style("padding", "6px 10px")
     .style("border-radius", "4px")
     .style("font-size", "11px")
-    .style("font-family", theme.font || "system-ui")
     .style("box-shadow", "0 2px 8px rgba(0,0,0,0.15)")
     .style("pointer-events", "none")
     // Its own compositing layer, so moving it doesn't make the browser
@@ -1836,6 +1858,27 @@ function addTooltip(selection, data, enc, tooltipConfig, theme, autoText) {
     .style("will-change", "transform")
     .style("opacity", 0);
 
+  // Dismiss on tapping/clicking anywhere except an element with a tooltip
+  // (whose own handler shows it; see addTooltip).
+  onDocumentTap(tip.node(), function(event) {
+    if (event.target && event.target.__glyphTooltip) return;
+    tip.style("opacity", 0);
+  });
+  return tip;
+}
+
+// `autoText`, when given, writes the text of an automatic (`tooltip = TRUE`)
+// tooltip; statistical marks use it to show their summary statistics.
+function addTooltip(selection, data, enc, tooltipConfig, theme, autoText) {
+  const tooltip = widgetTooltip(selection);
+  selection.each(function() { this.__glyphTooltip = true; });
+  // Marks in one widget can have different themes (compose(), inset()), so
+  // each sets its own colours when it shows the tooltip.
+  const dark = theme.fg === "#e0e0e0";
+  const colours = t => t
+    .style("background", dark ? "#333" : "#fff")
+    .style("color", dark ? "#fff" : "#333")
+    .style("font-family", theme.font || "system-ui");
   function renderText(d) {
     let text = "";
     if (tooltipConfig.template === "auto" && autoText) {
@@ -1857,6 +1900,7 @@ function addTooltip(selection, data, enc, tooltipConfig, theme, autoText) {
 
   function showAt(pageX, pageY, d) {
     tooltip.html(renderText(d))
+      .call(colours)
       .style("opacity", 1)
       .style("left", (pageX + 12) + "px")
       .style("top", (pageY - 12) + "px");
@@ -1871,10 +1915,10 @@ function addTooltip(selection, data, enc, tooltipConfig, theme, autoText) {
     .on("mousemove", function(event, d) { showAt(event.pageX, event.pageY, d); })
     .on("mouseout", hide)
     // Touch devices have no hover state, so show the tooltip on tap and
-    // dismiss it on the next tap elsewhere (below) instead. Namespaced so
-    // this doesn't clobber a bare "click" handler from addClickSelect()
-    // when both tooltip and click interactions are enabled on the same
-    // mark. touchend's preventDefault suppresses the browser's follow-up
+    // dismiss it on the next tap elsewhere (see widgetTooltip) instead.
+    // Namespaced so this doesn't clobber a bare "click" handler from
+    // addClickSelect() when both tooltip and click interactions are enabled
+    // on the same mark. touchend's preventDefault suppresses the browser's follow-up
     // synthetic "click" so the tap isn't handled twice.
     .on("click.tooltip touchend.tooltip", function(event, d) {
       event.stopPropagation();
@@ -1882,12 +1926,6 @@ function addTooltip(selection, data, enc, tooltipConfig, theme, autoText) {
       const point = event.changedTouches ? event.changedTouches[0] : event;
       showAt(point.pageX, point.pageY, d);
     });
-
-  // Dismiss on tapping/clicking anywhere else on the page.
-  d3.select(document).on(`click.${ns} touchend.${ns}`, function(event) {
-    if (selection.nodes().includes(event.target)) return;
-    hide();
-  });
 }
 
 // ---- Hover effects ----------------------------------------------------------
@@ -1948,8 +1986,6 @@ function addClickSelect(selection, action, baseOpacity, markRegistry) {
 }
 
 // ---- Brush ------------------------------------------------------------------
-
-let glyphBrushCounter = 0;
 
 // `entries` are the registered marks that can be brushed (see registerMark):
 // each has a `brush` adapter with
@@ -2158,8 +2194,7 @@ function addBrush(g, entries, w, h, dragState, emitSelection) {
   // the widget entirely) previously did nothing. Clear it there too, so a
   // touch user has an obvious way to dismiss a brush without having to land
   // precisely back inside the plot.
-  const ns = "glyph-brush-" + (glyphBrushCounter++);
-  d3.select(document).on(`click.${ns} touchend.${ns}`, function(event) {
+  onDocumentTap(brushG.node(), function(event) {
     const target = event.target;
     // Inside the brush's own group (overlay, selection rect, resize
     // handles) d3.brush already decides what a tap means — including
