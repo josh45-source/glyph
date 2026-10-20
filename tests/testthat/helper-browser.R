@@ -16,11 +16,19 @@ skip_if_no_browser <- function() {
     if (required) stop("Chrome is not available")
     skip("Chrome is not available")
   }
-  # Chrome refuses to start as root (as in some containers) without this.
-  if (identical(unname(Sys.info()[["effective_user"]]), "root") &&
-      !"--no-sandbox" %in% chromote::get_chrome_args()) {
-    chromote::set_chrome_args(c(chromote::get_chrome_args(), "--no-sandbox"))
-  }
+  # Keep timers and animation frames running in a tab Chrome considers
+  # hidden (headless windows on Windows can count as covered), or
+  # transitions never finish. Chrome refuses to start as root (as in some
+  # containers) without --no-sandbox.
+  args <- c("--disable-background-timer-throttling",
+            "--disable-backgrounding-occluded-windows",
+            "--disable-renderer-backgrounding")
+  if (identical(unname(Sys.info()[["effective_user"]]), "root")) args <- c(args, "--no-sandbox")
+  missing <- setdiff(args, chromote::get_chrome_args())
+  if (length(missing)) chromote::set_chrome_args(c(chromote::get_chrome_args(), missing))
+  # Chrome can take more than chromote's default 10 seconds to start on a
+  # busy CI runner.
+  if (getOption("chromote.timeout", 10) < 60) options(chromote.timeout = 60)
 }
 
 # Saves `x` (a spec, layout or widget) to a page in a temporary folder.
@@ -94,6 +102,10 @@ drag <- function(s, from, to, steps = 6) {
     mouse(s, "mouseMoved", p[1], p[2], button = "left", buttons = 1L)
   }
   mouse(s, "mouseReleased", to[1], to[2], button = "left", clickCount = 1L)
+  # After a drag, d3 swallows the next click until a zero-delay timer runs,
+  # so a click sent straight away (as a person couldn't) would be lost.
+  js(s, "new Promise(r => setTimeout(r, 50))")
+  invisible()
 }
 
 # The centre of the first element matching `selector`, in page coordinates.
