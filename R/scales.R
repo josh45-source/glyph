@@ -1,7 +1,7 @@
 #' @title Scales
 #' @name scales
 #' @description Scales map data values to visual properties. Every scale is
-#'   set with one function, `scale(<aesthetic>, <type>, ...)`, where the
+#'   set with one function, `set_scale(<aesthetic>, <type>, ...)`, where the
 #'   aesthetic is the channel (such as `"x"` or `"color"`) and the type is
 #'   how values are mapped (such as `"log"` or `"time"`). [scale_color()],
 #'   [scale_log()] and [scale_time()] are shortcuts for common cases.
@@ -30,12 +30,12 @@ NULL
 #' @examples
 #' glyph(mtcars, x = wt, y = mpg) |>
 #'   mark_point(color = cyl) |>
-#'   scale("y", "linear", zero = TRUE, label = "Miles per gallon") |>
-#'   scale("color", "ordinal", range = "Set2")
-scale <- function(spec, aesthetic, type = "auto",
-                  domain = NULL, range = NULL,
-                  nice = TRUE, zero = FALSE, reverse = FALSE,
-                  label = NULL, format = NULL, base = NULL) {
+#'   set_scale("y", "linear", zero = TRUE, label = "Miles per gallon") |>
+#'   set_scale("color", "ordinal", range = "Set2")
+set_scale <- function(spec, aesthetic, type = "auto",
+                      domain = NULL, range = NULL,
+                      nice = TRUE, zero = FALSE, reverse = FALSE,
+                      label = NULL, format = NULL, base = NULL) {
   stopifnot(inherits(spec, "glyph_spec"))
 
   sc <- list(
@@ -60,11 +60,11 @@ scale <- function(spec, aesthetic, type = "auto",
 #' @describeIn scales Set color palette by name
 #' @param spec A glyph_spec
 #' @param palette A named palette: "viridis", "Set2", "Tableau10", "Blues", etc.
-#' @param ... Additional arguments passed to \code{scale()}
+#' @param ... Additional arguments passed to \code{set_scale()}
 #' @return Modified \code{glyph_spec} object
 #' @export
 scale_color <- function(spec, palette = "Tableau10", ...) {
-  scale(spec, "color", range = palette, ...)
+  set_scale(spec, "color", range = palette, ...)
 }
 
 #' @describeIn scales Log-transform an axis
@@ -73,12 +73,12 @@ scale_color <- function(spec, palette = "Tableau10", ...) {
 #' @return Modified \code{glyph_spec} object
 #' @export
 scale_log <- function(spec, aesthetic = "y", base = 10, ...) {
-  scale(spec, aesthetic, type = "log", base = base, ...)
+  set_scale(spec, aesthetic, type = "log", base = base, ...)
 }
 
 #' @describeIn scales Time/date axis
 #' @return Modified \code{glyph_spec} object
 #' @export
 scale_time <- function(spec, aesthetic = "x", ...) {
-  scale(spec, aesthetic, type = "time", ...)
+  set_scale(spec, aesthetic, type = "time", ...)
 }

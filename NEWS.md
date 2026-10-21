@@ -1,5 +1,27 @@
 # glyph (development version)
 
+## Breaking changes
+
+* `scale()` is now `set_scale()` (#36). glyph's `scale()` had the same name
+  as `base::scale()`, so `library(glyph)` masked the base function. It
+  printed "The following object is masked from 'package:base': scale", and
+  base uses such as `scale(df$x)` failed afterwards with an error about
+  glyph specs. `set_scale()` takes the same arguments. To update your code,
+  change each `scale()` step in a glyph pipeline to `set_scale()`:
+
+  ```r
+  # Before
+  glyph(mtcars, x = wt, y = mpg) |> mark_point() |> scale("y", zero = TRUE)
+  # After
+  glyph(mtcars, x = wt, y = mpg) |> mark_point() |> set_scale("y", zero = TRUE)
+  ```
+
+  Base uses of `scale()` work again and need no change. `scale_color()`,
+  `scale_log()` and `scale_time()` keep their names. `library(glyph)` no
+  longer masks any function.
+
+## Other changes
+
 * glyph works in Shiny (#34). `glyphOutput()` and `renderGlyph()` place
   and draw a plot, and `renderGlyph()` takes a plot, a `compose()` layout or
   a widget from `render()`. What the user selects reaches the server as
@@ -30,7 +52,7 @@
   and the others weren't in proportion to their values. Bars and areas are
   now drawn from zero, so a negative bar hangs down from zero instead of
   rising from the bottom of the plot. Histograms already started at zero.
-  A domain set with `scale()` is used as given, including on the shared
+  A domain set with `set_scale()` is used as given, including on the shared
   axes of `facet()` and `compose()`. Point and line marks are unchanged.
 * A GitHub Actions workflow runs `R CMD check` on Windows, macOS and Linux
   for every pull request, alongside the browser tests and the pkgdown site.

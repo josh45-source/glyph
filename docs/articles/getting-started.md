@@ -1,12 +1,7 @@
 # Getting Started with glyph
 
 \
-[`library`](https://rdrr.io/r/base/library.html)`(`[`glyph`](https://github.com/josh45-source/glyph)`)`\
-`#> `\
-`#> Attaching package: 'glyph'`\
-`#> The following object is masked from 'package:base':`\
-`#> `\
-`#>     scale`
+[`library`](https://rdrr.io/r/base/library.html)`(`[`glyph`](https://github.com/josh45-source/glyph)`)`
 
 Every plot on this page is built by the code above it and drawn by
 glyph’s D3 renderer. They are live, so you can hover, click, brush and

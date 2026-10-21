@@ -74,7 +74,7 @@ Transitions and entrance/exit animation.
 
 Control how data maps to visual properties.
 
-- [`scale()`](https://josh45-source.github.io/glyph/reference/scale.md)
+- [`set_scale()`](https://josh45-source.github.io/glyph/reference/set_scale.md)
   : Define a scale for an aesthetic channel
 - [`scale_color()`](https://josh45-source.github.io/glyph/reference/scales.md)
   [`scale_log()`](https://josh45-source.github.io/glyph/reference/scales.md)

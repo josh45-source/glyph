@@ -20,7 +20,7 @@ features are being added regularly.
 [`glyph`](https://josh45-source.github.io/glyph/reference/glyph.md)`(``mtcars``, x ``=`` ``wt``, y ``=`` ``mpg``)`` ``|>`\
 `  `[`mark_point`](https://josh45-source.github.io/glyph/reference/mark_point.md)`(``color ``=`` ``cyl``, size ``=`` ``hp``)`` ``|>`\
 `  `[`interact`](https://josh45-source.github.io/glyph/reference/interact.md)`(``tooltip ``=`` ``"{cyl} cyl, {mpg} mpg at {wt} tons"``, zoom ``=`` ``TRUE``)`` ``|>`\
-`  `[`scale`](https://josh45-source.github.io/glyph/reference/scale.md)`(``"y"``, zero ``=`` ``TRUE``, label ``=`` ``"Miles per gallon"``)`` ``|>`\
+`  `[`set_scale`](https://josh45-source.github.io/glyph/reference/set_scale.md)`(``"y"``, zero ``=`` ``TRUE``, label ``=`` ``"Miles per gallon"``)`` ``|>`\
 `  `[`theme_tokens`](https://josh45-source.github.io/glyph/reference/theme_tokens.md)`(``preset ``=`` ``"dark"``)`` ``|>`\
 `  `[`titles`](https://josh45-source.github.io/glyph/reference/titles.md)`(``title ``=`` ``"Motor Trend Cars"``, subtitle ``=`` ``"Weight vs fuel efficiency"``)`
 

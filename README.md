@@ -77,7 +77,7 @@ from `selection()`.
 glyph(mtcars, x = cyl, y = mpg) |>
   mark_bar() |>
   animate(transition = "slide", stagger = 80, easing = "bounce") |>
-  scale("y", zero = TRUE, label = "Miles per gallon")
+  set_scale("y", zero = TRUE, label = "Miles per gallon")
 ```
 
 With `by`, the plot steps through groups of the data and the marks move from

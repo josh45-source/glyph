@@ -2,6 +2,41 @@
 
 ## glyph (development version)
 
+### Breaking changes
+
+- [`scale()`](https://rdrr.io/r/base/scale.html) is now
+  [`set_scale()`](https://josh45-source.github.io/glyph/reference/set_scale.md)
+  ([\#36](https://github.com/josh45-source/glyph/issues/36)). glyph’s
+  [`scale()`](https://rdrr.io/r/base/scale.html) had the same name as
+  [`base::scale()`](https://rdrr.io/r/base/scale.html), so
+  [`library(glyph)`](https://github.com/josh45-source/glyph) masked the
+  base function. It printed “The following object is masked from
+  ‘package:base’: scale”, and base uses such as `scale(df$x)` failed
+  afterwards with an error about glyph specs.
+  [`set_scale()`](https://josh45-source.github.io/glyph/reference/set_scale.md)
+  takes the same arguments. To update your code, change each
+  [`scale()`](https://rdrr.io/r/base/scale.html) step in a glyph
+  pipeline to
+  [`set_scale()`](https://josh45-source.github.io/glyph/reference/set_scale.md):
+
+  \
+  `# Before`\
+  [`glyph`](https://josh45-source.github.io/glyph/reference/glyph.md)`(``mtcars``, x ``=`` ``wt``, y ``=`` ``mpg``)`` ``|>`` `[`mark_point`](https://josh45-source.github.io/glyph/reference/mark_point.md)`(``)`` ``|>`` `[`scale`](https://rdrr.io/r/base/scale.html)`(``"y"``, zero ``=`` ``TRUE``)`\
+  `# After`\
+  [`glyph`](https://josh45-source.github.io/glyph/reference/glyph.md)`(``mtcars``, x ``=`` ``wt``, y ``=`` ``mpg``)`` ``|>`` `[`mark_point`](https://josh45-source.github.io/glyph/reference/mark_point.md)`(``)`` ``|>`` `[`set_scale`](https://josh45-source.github.io/glyph/reference/set_scale.md)`(``"y"``, zero ``=`` ``TRUE``)`
+
+  Base uses of [`scale()`](https://rdrr.io/r/base/scale.html) work again
+  and need no change.
+  [`scale_color()`](https://josh45-source.github.io/glyph/reference/scales.md),
+  [`scale_log()`](https://josh45-source.github.io/glyph/reference/scales.md)
+  and
+  [`scale_time()`](https://josh45-source.github.io/glyph/reference/scales.md)
+  keep their names.
+  [`library(glyph)`](https://github.com/josh45-source/glyph) no longer
+  masks any function.
+
+### Other changes
+
 - glyph works in Shiny
   ([\#34](https://github.com/josh45-source/glyph/issues/34)).
   [`glyphOutput()`](https://josh45-source.github.io/glyph/reference/glyph-shiny.md)
@@ -53,7 +88,7 @@
   are now drawn from zero, so a negative bar hangs down from zero
   instead of rising from the bottom of the plot. Histograms already
   started at zero. A domain set with
-  [`scale()`](https://josh45-source.github.io/glyph/reference/scale.md)
+  [`set_scale()`](https://josh45-source.github.io/glyph/reference/set_scale.md)
   is used as given, including on the shared axes of
   [`facet()`](https://josh45-source.github.io/glyph/reference/facet.md)
   and
@@ -356,8 +391,8 @@ CRAN release: 2026-07-06
   [`animate()`](https://josh45-source.github.io/glyph/reference/animate.md):
   entrance transitions and keyframe animation through data states.
 - Unified scale system via
-  [`scale()`](https://josh45-source.github.io/glyph/reference/scale.md)
-  with convenience wrappers
+  [`scale()`](https://rdrr.io/r/base/scale.html) with convenience
+  wrappers
   [`scale_color()`](https://josh45-source.github.io/glyph/reference/scales.md),
   [`scale_log()`](https://josh45-source.github.io/glyph/reference/scales.md),
   [`scale_time()`](https://josh45-source.github.io/glyph/reference/scales.md).

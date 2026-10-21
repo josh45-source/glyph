@@ -90,7 +90,7 @@ reference:
 - title: Scales
   desc: Control how data maps to visual properties.
   contents:
-  - scale
+  - set_scale
   - scales
 
 - title: Theming
@@ -138,6 +138,10 @@ articles:
 - title: Extending glyph
   contents:
   - custom-marks
+
+# scale() was renamed set_scale() (#36); old links go to the new page.
+redirects:
+  - ["reference/scale.html", "reference/set_scale.html"]
 
 footer:
   structure:
