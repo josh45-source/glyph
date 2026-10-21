@@ -23,7 +23,7 @@ library(glyph)
 glyph(mtcars, x = wt, y = mpg) |>
   mark_point(color = cyl, size = hp) |>
   interact(tooltip = "{cyl} cyl, {mpg} mpg at {wt} tons", zoom = TRUE) |>
-  scale("y", zero = TRUE, label = "Miles per gallon") |>
+  set_scale("y", zero = TRUE, label = "Miles per gallon") |>
   theme_tokens(preset = "dark") |>
   titles(title = "Motor Trend Cars", subtitle = "Weight vs fuel efficiency")
 ```
@@ -159,7 +159,7 @@ Transitions and entrance/exit animation.
 
 Control how data maps to visual properties.
 
-- [`scale()`](https://josh45-source.github.io/glyph/reference/scale.md)
+- [`set_scale()`](https://josh45-source.github.io/glyph/reference/set_scale.md)
   : Define a scale for an aesthetic channel
 - [`scale_color()`](https://josh45-source.github.io/glyph/reference/scales.md)
   [`scale_log()`](https://josh45-source.github.io/glyph/reference/scales.md)

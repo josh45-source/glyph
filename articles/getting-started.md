@@ -3,11 +3,6 @@
 ``` r
 
 library(glyph)
-#> 
-#> Attaching package: 'glyph'
-#> The following object is masked from 'package:base':
-#> 
-#>     scale
 ```
 
 Every plot on this page is built by the code above it and drawn by

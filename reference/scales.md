@@ -1,8 +1,8 @@
 # Scales
 
 Scales map data values to visual properties. Every scale is set with one
-function, `scale(<aesthetic>, <type>, ...)`, where the aesthetic is the
-channel (such as `"x"` or `"color"`) and the type is how values are
+function, `set_scale(<aesthetic>, <type>, ...)`, where the aesthetic is
+the channel (such as `"x"` or `"color"`) and the type is how values are
 mapped (such as `"log"` or `"time"`). `scale_color()`, `scale_log()` and
 `scale_time()` are shortcuts for common cases.
 
@@ -29,7 +29,7 @@ scale_time(spec, aesthetic = "x", ...)
 - ...:
 
   Additional arguments passed to
-  [`scale()`](https://josh45-source.github.io/glyph/reference/scale.md)
+  [`set_scale()`](https://josh45-source.github.io/glyph/reference/set_scale.md)
 
 - aesthetic:
 
