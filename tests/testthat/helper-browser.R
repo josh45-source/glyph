@@ -40,6 +40,17 @@ save_page <- function(x, env = parent.frame()) {
   file
 }
 
+# Puts several widgets on one page, each in a div with the given id.
+save_widgets <- function(widgets, env = parent.frame()) {
+  dir <- withr::local_tempdir(.local_envir = env)
+  file <- file.path(dir, "page.html")
+  tags <- lapply(names(widgets), function(id) {
+    htmltools::div(id = id, style = "width:600px;height:400px;margin-bottom:20px;", widgets[[id]])
+  })
+  htmltools::save_html(htmltools::tagList(tags), file, libdir = "lib")
+  file
+}
+
 # A file:// URL for a local file, on Windows ("file:///C:/...") as elsewhere.
 file_url <- function(file) {
   path <- normalizePath(file, winslash = "/")
@@ -47,9 +58,10 @@ file_url <- function(file) {
   paste0("file://", utils::URLencode(path))
 }
 
-# Opens a page in a new headless Chrome tab of the given size, waits until
-# every widget on it has drawn, and closes the tab when the calling test ends.
-# Script errors are collected in `window.__errors`.
+# Opens a page (a file, or the URL of a running Shiny app) in a new headless
+# Chrome tab of the given size, waits until every widget on it has drawn, and
+# closes the tab when the calling test ends. Script errors are collected in
+# `window.__errors`.
 open_page <- function(file, width = 800, height = 600, env = parent.frame()) {
   s <- chromote::ChromoteSession$new(width = width, height = height)
   withr::defer(s$close(), envir = env)
@@ -57,7 +69,7 @@ open_page <- function(file, width = 800, height = 600, env = parent.frame()) {
     "window.__errors = []; addEventListener('error', e => window.__errors.push(e.message));"
   )
   loaded <- s$Page$loadEventFired(wait_ = FALSE)
-  s$Page$navigate(file_url(file), wait_ = FALSE)
+  s$Page$navigate(if (grepl("^https?://", file)) file else file_url(file), wait_ = FALSE)
   s$wait_for(loaded)
   wait_until(s, "[...document.querySelectorAll('.html-widget')].every(w => w.querySelector('svg'))")
   # Let entrance animations and transitions finish.
@@ -116,6 +128,55 @@ centre_of <- function(s, selector) {
     jsonlite::toJSON(selector, auto_unbox = TRUE)
   ))
   unlist(r)
+}
+
+# A drag that starts inside a brush moves it, so a new brush starts by
+# clearing the plot's current one with its Clear selection button.
+clear_brush <- function(s, id, n = 1) {
+  xy <- unlist(js(s, sprintf(
+    "(() => { const brush = document.querySelectorAll('#%s .brush')[%d];
+              if (!d3.brushSelection(brush)) return null;
+              const b = brush.ownerSVGElement.parentNode.querySelector('.glyph-clear-selection').getBoundingClientRect();
+              return [b.left + b.width / 2, b.top + b.height / 2]; })()", id, n - 1)))
+  if (!is.null(xy)) click_at(s, xy[1], xy[2])
+}
+
+# Drags a brush over the `n`th brushable plot in div `id`, between fractions
+# `from` and `to` of its width and height. Points can sit on the plot's
+# edges, so a drag to an edge goes past it (the brush stops at the edge).
+brush_over <- function(s, id, from = c(0, 0), to = c(1, 1), n = 1) {
+  clear_brush(s, id, n)
+  b <- unlist(js(s, sprintf(
+    "(() => { const b = document.querySelectorAll('#%s .brush .overlay')[%d].getBoundingClientRect();
+              return [b.left, b.top, b.width, b.height]; })()", id, n - 1)))
+  at <- function(f) b[1:2] + b[3:4] * f
+  drag(s, at(from), at(to) + ifelse(to >= 1, 10, 0))
+}
+
+# Drags a brush just around the elements matching `selector` in div `id`
+# whose data pass `test` (JavaScript, of `d`).
+brush_around <- function(s, id, selector, test) {
+  clear_brush(s, id)
+  box <- unlist(js(s, sprintf(
+    "(() => { const bs = [...document.querySelectorAll('#%s %s')].filter(e => (d => %s)(e.__data__))
+                .map(e => e.getBoundingClientRect());
+              const o = document.querySelector('#%s .brush .overlay').getBoundingClientRect();
+              return [Math.min(...bs.map(b => b.left)), Math.min(...bs.map(b => b.top)),
+                      Math.max(...bs.map(b => b.right)), Math.max(...bs.map(b => b.bottom)),
+                      o.left, o.top]; })()",
+    id, selector, test, id)))
+  # The drag has to start inside the plot, even for elements on its edge.
+  drag(s, pmax(box[1:2] - 4, box[5:6]), box[3:4] + 4)
+}
+
+# Clicks the centre of the first element matching `selector` in div `id`
+# whose data pass `test`.
+click_on <- function(s, id, selector, test) {
+  xy <- unlist(js(s, sprintf(
+    "(() => { const e = [...document.querySelectorAll('#%s %s')].find(e => (d => %s)(e.__data__));
+              const b = e.getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; })()",
+    id, selector, test)))
+  click_at(s, xy[1], xy[2])
 }
 
 # Script that converts drawn positions back to data values using the axis

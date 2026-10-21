@@ -64,7 +64,9 @@ JSON file.
 ## Learn more
 
 The [Getting Started guide](articles/getting-started.html) runs through
-each feature with live plots you can hover, zoom and brush. The
+each feature with live plots you can hover, zoom and brush.
+[Using glyph in Shiny](articles/shiny.html) shows how to read what the user
+selects from a Shiny server. The
 [function reference](reference/index.html) lists everything glyph exports,
 and [ARCHITECTURE.md](ARCHITECTURE.html) explains how the spec, the compiler
 and the renderer fit together.

@@ -19,6 +19,7 @@
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="articles/getting-started.html">Getting Started</a></li>
+    <li><a class="dropdown-item" href="articles/shiny.html">Using glyph in Shiny</a></li>
     <li><a class="dropdown-item" href="articles/custom-marks.html">Adding a custom mark</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="news/index.html">Changelog</a></li>
@@ -86,7 +87,7 @@
 <span>  zoom <span class="op">=</span> <span class="cn">TRUE</span>,        <span class="co"># interval selection, rescale</span></span>
 <span>  crossfilter <span class="op">=</span> <span class="cn">TRUE</span>  <span class="co"># pass the selection to linked views</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>Because they are part of the spec, interactions are kept when a plot is exported to HTML. They can be described without knowing the renderer, and a future Shiny integration could read selection events on the server.</p>
+<p>Because they are part of the spec, interactions are kept when a plot is exported to HTML, and they can be described without knowing the renderer. In a Shiny app, the renderer sends each selection to the server as row numbers of the plot’s data (<code>input$&lt;id&gt;_selected</code>). Every row it draws remembers which row of the data it came from, so the numbers stay right when rows are dropped for missing values or summarised by a statistical mark.</p>
 </div>
 <div class="section level2">
 <h2 id="id_5-theme-tokens">5. Theme tokens<a class="anchor" aria-label="anchor" href="#id_5-theme-tokens"></a></h2>

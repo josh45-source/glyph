@@ -164,8 +164,10 @@ glyph is at version 0.1. It has point, line, bar, area, text, rule, ribbon,
 link and polygon marks, and boxplot, violin, sina and histogram marks that
 compute their statistics from the data. It supports tooltips, hover, click, zoom,
 brushing and crossfilter; entrance and keyframe animation; `compose()`,
-`facet()`, `marginals()` and `inset()`; theme tokens and presets; and JSON
-and Vega-Lite export.
+`facet()`, `marginals()` and `inset()`; theme tokens and presets; JSON
+and Vega-Lite export; and Shiny apps, through `glyphOutput()` and
+`renderGlyph()`, with brush, click and legend selections sent to the server
+as row numbers.
 
 Large plots are limited by the browser, not by R. A 100,000-point scatter
 plot takes about 0.1s to compile and under half a second to reach the
@@ -191,7 +193,6 @@ Not done yet:
   when you add one with `selection("legend", type = "legend")`.
 - Keyboard accessibility
 - Network, treemap and sunburst marks
-- Shiny integration, with selections available as reactive values
 - Static SVG, PNG and PDF export
 - Importing Vega-Lite specs
 - Arrow and DuckDB data sources for data that doesn't fit in memory

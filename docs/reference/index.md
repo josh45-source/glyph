@@ -126,3 +126,11 @@ Compile the spec and render or export it.
   : Export to various formats
 - [`to_vegalite()`](https://josh45-source.github.io/glyph/reference/to_vegalite.md)
   : Export the spec as Vega-Lite JSON (interop)
+
+## Shiny
+
+Use plots in Shiny apps and read what the user selects.
+
+- [`glyphOutput()`](https://josh45-source.github.io/glyph/reference/glyph-shiny.md)
+  [`renderGlyph()`](https://josh45-source.github.io/glyph/reference/glyph-shiny.md)
+  : Use glyph plots in Shiny
