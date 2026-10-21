@@ -61,6 +61,66 @@ test_that("renderGlyph() converts what its expression returns early", {
   expect_identical(value$x$spec$marks[[1]]$type, "point")
 })
 
+# The types of the parts of an expression that aren't language: anything but
+# symbols, calls and plain constants. Calls and pairlists (the arguments of
+# a `function` call) are searched; for a missing argument, as in `x[, 1]`,
+# typeof() is "symbol".
+non_language <- function(x) {
+  type <- typeof(x)
+  if (type %in% c("language", "pairlist")) {
+    return(unlist(lapply(as.list(x), non_language)))
+  }
+  if (type %in% c("symbol", "NULL")) return(character())
+  if (is.atomic(x) && is.null(attributes(x))) return(character())
+  type
+}
+
+test_that("renderGlyph() hands Shiny an expression of language only", {
+  skip_if_not_installed("shiny")
+  # RStudio's Shiny debug hook walks the expression a render function runs
+  # and calls as.character() on its parts. A function object in it stops the
+  # app ("cannot coerce type 'closure' to vector of type 'character'").
+  passed <- NULL
+  local_mocked_bindings(
+    shinyRenderWidget = function(expr, outputFunction, env, quoted, ...) {
+      passed <<- expr
+      function() NULL
+    },
+    .package = "htmlwidgets"
+  )
+  renderGlyph({
+    if (nrow(mtcars) == 0) return(NULL)
+    glyph(mtcars[, c("wt", "mpg")], x = wt, y = mpg) |> mark_point()
+  })
+  expect_true(is.call(passed))
+  expect_identical(non_language(passed), character())
+  # The walk itself finds a function object, as the old renderGlyph() had.
+  expect_identical(non_language(as.call(list(identity, quote(x[, 1])))), "closure")
+})
+
+test_that("renderGlyph() works with RStudio's Shiny debug hook", {
+  skip_if_not_installed("shiny")
+  # shiny hands every function a render function runs to a function named
+  # registerShinyDebugHook, if one exists, which RStudio defines. This
+  # stand-in reads every part of the function's body as text, as RStudio's
+  # does.
+  hooked <- character()
+  hook <- function(params) {
+    fn <- get(params$name, envir = params$where)
+    read <- function(x) {
+      if (typeof(x) %in% c("language", "pairlist")) lapply(as.list(x), read) else as.character(x)
+    }
+    read(body(fn))
+    hooked <<- c(hooked, params$name)
+  }
+  assign("registerShinyDebugHook", hook, envir = globalenv())
+  withr::defer(rm("registerShinyDebugHook", envir = globalenv()))
+
+  value <- rendered(glyph(mtcars[, c("wt", "mpg")], x = wt, y = mpg) |> mark_point())
+  expect_identical(value$x$spec$marks[[1]]$type, "point")
+  expect_gt(length(hooked), 0)
+})
+
 test_that("renderGlyph() says what it needs when given something else", {
   skip_if_not_installed("shiny")
   expect_error(rendered(mtcars), "needs a plot from")

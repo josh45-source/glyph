@@ -94,13 +94,19 @@ renderGlyph <- function(expr, env = parent.frame(), quoted = FALSE) {
   if (!quoted) expr <- substitute(expr)
   register_selection_handler()
   # The plot is turned into a widget after `expr` is evaluated, so the user
-  # can return a spec or layout as they would print one. `expr` runs as the
-  # body of its own function, so a return() in it, as in
-  # `if (is.null(input$file)) return(NULL)`, still goes through the
-  # conversion.
-  plot <- rlang::new_function(list(), expr, env)
-  expr <- as.call(list(as_glyph_widget, as.call(list(plot))))
-  htmlwidgets::shinyRenderWidget(expr, glyphOutput, env, quoted = TRUE)
+  # can return a spec or layout as they would print one. `expr` becomes the
+  # body of its own function, `glyph_plot()` in this frame, so a return() in
+  # it, as in `if (is.null(input$file)) return(NULL)`, still goes through the
+  # conversion. Shiny's own installExprFunction() makes it, as for any other
+  # render function.
+  #
+  # What Shiny runs is then the call below, evaluated in this frame, where
+  # both names are found. It has to be language only: RStudio's Shiny debug
+  # hook walks it and calls as.character() on its parts, and fails on a
+  # function object placed in the call itself.
+  shiny::installExprFunction(expr, "glyph_plot", env, quoted = TRUE)
+  htmlwidgets::shinyRenderWidget(quote(as_glyph_widget(glyph_plot())), glyphOutput,
+                                 environment(), quoted = TRUE)
 }
 
 #' The widget for a plot returned to renderGlyph()
