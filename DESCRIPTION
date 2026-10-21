@@ -1,18 +1,18 @@
 Package: glyph
 Title: A Grammar of Interactive Graphics
-Version: 0.1.1.9000
+Version: 0.2.0
 Authors@R: c(
     person("Joash Joshua", "Ayo", role = c("aut", "cre"),
     email = "joashjoshua789@gmail.com"),
     person("Mike", "Bostock", role = c("ctb", "cph"),
     comment = "Author of the bundled D3.js library"))
 Description: Builds interactive graphics from a declarative specification.
-    Marks, scales, tooltips, hover and click events, zoom, brushing, linked
-    selections, animated transitions and multi-plot layouts are declared in
-    one pipeline and stored as a plain R list that can be inspected, saved as
-    'JSON' or converted to 'Vega-Lite'. Themes are set from a small set of
-    design tokens. Plots are drawn in the browser as 'htmlwidgets' using
-    'D3.js'.
+    Marks, scales, tooltips, zoom, brushing, linked selections, animated
+    transitions and multi-plot layouts are declared in one pipeline and
+    stored as a plain R list that can be inspected, saved as JSON or
+    converted to 'Vega-Lite'. Plots are drawn in the browser with 'D3.js'
+    and work at the console, in R Markdown and 'Quarto' documents, and in
+    'Shiny' apps, where brushed selections are returned to R.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Depends: R (>= 4.1.0)
