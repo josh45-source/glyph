@@ -5,7 +5,7 @@ Define a scale for an aesthetic channel
 ## Usage
 
 ``` r
-scale(
+set_scale(
   spec,
   aesthetic,
   type = "auto",
@@ -79,7 +79,7 @@ Modified glyph_spec
 ``` r
 glyph(mtcars, x = wt, y = mpg) |>
   mark_point(color = cyl) |>
-  scale("y", "linear", zero = TRUE, label = "Miles per gallon") |>
-  scale("color", "ordinal", range = "Set2")
+  set_scale("y", "linear", zero = TRUE, label = "Miles per gallon") |>
+  set_scale("color", "ordinal", range = "Set2")
 #> <glyph_spec: 32 x 11, 1 mark(s)>
 ```

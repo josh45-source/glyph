@@ -193,7 +193,7 @@ function drawLollipop(g, data, enc, scales, style, w, h, interact, theme, markRe
   const px = d => xPos(scales, enc, d, slotWidth);
   const py = d => yPos(scales, enc, d);
   // Stems start at zero, or at the edge of the plot when a domain set with
-  // scale() leaves zero outside it.
+  // set_scale() leaves zero outside it.
   const base = scales.y ? Math.max(0, Math.min(h, scales.y(0))) : h;
   const colour = d => scales.color ? scales.color(getVal(d, enc.color)) : (theme.accent || "#4269d0");
 

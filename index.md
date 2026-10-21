@@ -21,7 +21,7 @@ library(glyph)
 glyph(mtcars, x = wt, y = mpg) |>
   mark_point(color = cyl, size = hp) |>
   interact(tooltip = "{cyl} cyl, {mpg} mpg at {wt} tons", zoom = TRUE) |>
-  scale("y", zero = TRUE, label = "Miles per gallon") |>
+  set_scale("y", zero = TRUE, label = "Miles per gallon") |>
   theme_tokens(preset = "dark") |>
   titles(title = "Motor Trend Cars", subtitle = "Weight vs fuel efficiency")
 ```

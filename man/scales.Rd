@@ -18,7 +18,7 @@ scale_time(spec, aesthetic = "x", ...)
 
 \item{palette}{A named palette: "viridis", "Set2", "Tableau10", "Blues", etc.}
 
-\item{...}{Additional arguments passed to \code{scale()}}
+\item{...}{Additional arguments passed to \code{set_scale()}}
 
 \item{aesthetic}{Which channel: "x", "y", "color", "size", "shape", "alpha"}
 
@@ -33,7 +33,7 @@ Modified \code{glyph_spec} object
 }
 \description{
 Scales map data values to visual properties. Every scale is
-set with one function, \verb{scale(<aesthetic>, <type>, ...)}, where the
+set with one function, \verb{set_scale(<aesthetic>, <type>, ...)}, where the
 aesthetic is the channel (such as \code{"x"} or \code{"color"}) and the type is
 how values are mapped (such as \code{"log"} or \code{"time"}). \code{\link[=scale_color]{scale_color()}},
 \code{\link[=scale_log]{scale_log()}} and \code{\link[=scale_time]{scale_time()}} are shortcuts for common cases.

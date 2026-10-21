@@ -464,7 +464,7 @@ function computeSharedDomains(panels, sharedAxes) {
 
   // Every mark of every panel contributes, using the mark's own rows (which
   // carry computed columns and statistical summaries) when it has them.
-  // A numeric domain set with scale() stands in for the panel's data.
+  // A numeric domain set with set_scale() stands in for the panel's data.
   const panelExtent = (p, axis) => {
     const domain = p.scales?.[axis]?.domain;
     if (Array.isArray(domain) && domain.length === 2 && domain.every(Number.isFinite)) return domain;
@@ -513,7 +513,7 @@ function markExtent(mark, data, axis) {
     const f = enc[axis].field;
     data.forEach(d => vals.push(d[f]));
     // Bars and areas are measured from zero, so their value axis includes it
-    // (#29). A domain set with scale() is used instead of this extent.
+    // (#29). A domain set with set_scale() is used instead of this extent.
     if (axis === "y" && (mark.type === "bar" || mark.type === "area")) vals.push(0);
   } else if (axis === "y" && enc.y_min?.field && enc.y_max?.field) {
     data.forEach(d => vals.push(d[enc.y_min.field], d[enc.y_max.field]));
@@ -1046,7 +1046,7 @@ function drawPoints(g, data, enc, scales, style, w, h, interact, theme, markRegi
 function drawBars(g, data, enc, scales, style, w, h, interact, theme, markRegistry) {
   const bandwidth = scales.x?.bandwidth ? scales.x.bandwidth() : w / Math.max(data.length, 1) * 0.8;
   // Bars run from zero to their value, kept inside the plot when a domain
-  // set with scale() leaves zero or the value outside it.
+  // set with set_scale() leaves zero or the value outside it.
   const clampY = v => Math.max(0, Math.min(h, v));
   const base = scales.y ? clampY(scales.y(0)) : h;
   const end = d => clampY(scales.y(getVal(d, enc.y)));
@@ -1106,7 +1106,7 @@ function drawLine(g, data, enc, scales, style, w, h, interact, theme) {
 
 function drawArea(g, data, enc, scales, style, h, interact, theme) {
   // Filled down to zero, or to the edge of the plot when a domain set with
-  // scale() leaves zero outside it.
+  // set_scale() leaves zero outside it.
   const area = d3.area()
     .x(d => scales.x(getVal(d, enc.x)))
     .y0(Math.max(0, Math.min(h, scales.y(0))))

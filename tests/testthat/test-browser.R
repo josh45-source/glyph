@@ -63,7 +63,7 @@ test_that("bars, areas and histograms start at zero (#29)", {
     signed = render(glyph(signed, x = g, y = v) |> mark_bar()),
     area = render(glyph(series, x = t, y = v) |> mark_area()),
     histogram = render(glyph(mtcars, x = mpg) |> mark_histogram()),
-    domain = render(glyph(df, x = g, y = v) |> mark_bar() |> scale("y", domain = c(2, 10))),
+    domain = render(glyph(df, x = g, y = v) |> mark_bar() |> set_scale("y", domain = c(2, 10))),
     point = render(glyph(df, x = v, y = v) |> mark_point()),
     line = render(glyph(series, x = t, y = v) |> mark_line())
   )), width = 800, height = 3200)
@@ -97,7 +97,7 @@ test_that("bars, areas and histograms start at zero (#29)", {
   # Histogram counts start at zero.
   expect_equal(lowest_tick("histogram"), 0)
 
-  # A domain set with scale() wins: the axis starts at 2, and bars rise from
+  # A domain set with set_scale() wins: the axis starts at 2, and bars rise from
   # the bottom of the plot.
   expect_equal(lowest_tick("domain"), 2)
   ends <- bar_ends("domain")

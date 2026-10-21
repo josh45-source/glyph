@@ -173,10 +173,10 @@ test_that("animate() rejects invalid easing", {
   )
 })
 
-test_that("scale() sets scale config", {
+test_that("set_scale() sets scale config", {
   spec <- glyph(mtcars, x = wt, y = mpg) |>
     mark_point() |>
-    scale("y", "linear", zero = TRUE, label = "MPG")
+    set_scale("y", "linear", zero = TRUE, label = "MPG")
 
   expect_equal(spec$scales$y$type, "linear")
   expect_true(spec$scales$y$zero)
@@ -528,7 +528,7 @@ test_that("full pipeline: spec -> compile -> JSON round-trip", {
     mark_line() |>
     interact(tooltip = TRUE, zoom = TRUE) |>
     animate(transition = "fade", duration = 300) |>
-    scale("y", "linear", zero = TRUE, label = "Miles per Gallon") |>
+    set_scale("y", "linear", zero = TRUE, label = "Miles per Gallon") |>
     scale_color("Set2") |>
     theme_tokens(preset = "dark") |>
     titles(title = "Test Plot") |>
