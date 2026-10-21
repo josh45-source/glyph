@@ -2,6 +2,8 @@
 
 ## glyph 0.2.0
 
+CRAN release: 2026-10-21
+
 ### Breaking changes
 
 - [`scale()`](https://rdrr.io/r/base/scale.html) is now
