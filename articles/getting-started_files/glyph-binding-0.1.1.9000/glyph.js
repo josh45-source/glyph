@@ -9,9 +9,37 @@ HTMLWidgets.widget({
 
   factory: function(el, width, height) {
     let spec = null;
+    // What is selected in the current drawing (see selectionSlot()), and the
+    // last value reported, as JSON.
+    let selection = null;
+    let reported = "null";
+
+    // Tells Shiny (as input$<id>_selected) and anything listening on the
+    // widget (a "glyph-selection" event) when the selection changes. Every
+    // redraw starts with nothing selected, so a redraw that removes a
+    // selection reports NULL.
+    function reportSelection() {
+      const value = selectionValue(selection);
+      const json = JSON.stringify(value);
+      if (json === reported) return;
+      reported = json;
+      el.dispatchEvent(new CustomEvent("glyph-selection", { detail: value }));
+      if (HTMLWidgets.shinyMode && el.id && window.Shiny && typeof Shiny.setInputValue === "function") {
+        Shiny.setInputValue(el.id + "_selected:glyph.selection", value);
+      }
+    }
 
     return {
       renderValue: function(x) {
+        // In Shiny, renderGlyph() turns NULL into an empty widget, which
+        // clears the last plot and its selection.
+        if (!x || x.empty) {
+          spec = null;
+          selection = null;
+          el.innerHTML = "";
+          reportSelection();
+          return;
+        }
         try {
           doRender(x);
         } catch (err) {
@@ -56,6 +84,7 @@ HTMLWidgets.widget({
         h = Math.max(80, h - Math.max(0, overY));
         draw(w, h);
       }
+      reportSelection();
     }
 
     function draw(w, h) {
@@ -63,19 +92,22 @@ HTMLWidgets.widget({
 
       if (spec.type === "layout") {
         el.style.background = "transparent";
-        renderLayout(el, spec, w, h);
+        selection = selectionSlot("layout", reportSelection, spec.panel_names);
+        renderLayout(el, spec, w, h, selection);
         return;
       }
 
       if (spec.facets && (spec.facets.cols || spec.facets.rows)) {
         el.style.background = "transparent";
-        renderFacets(el, spec, w, h);
+        selection = selectionSlot("facets", reportSelection);
+        renderFacets(el, spec, w, h, selection);
         return;
       }
 
       const theme = spec.theme || {};
       el.style.background = theme.bg || "#fff";
-      renderSpecInto(el, spec, { width: w, height: h, standalone: true });
+      selection = selectionSlot("plot", reportSelection);
+      renderSpecInto(el, spec, { width: w, height: h, standalone: true, selectionSlot: selection });
     }
   }
 });
@@ -96,7 +128,15 @@ function columnArray(v) {
   return Array.isArray(v) ? v : [v];
 }
 
-function rowsFromColumns(columns, n, fields, rowIndex) {
+// Each row object remembers which row of the plot's data it is (0-based),
+// so a selection can be reported to Shiny as rows of the data frame given to
+// glyph(), whatever was dropped or recomputed on the way. A symbol key, so
+// it never shows up among the row's fields (tooltips, the legend).
+const GLYPH_ROW = Symbol("glyph row");
+
+// `plotRows` maps column position to plot row: null when they are the same,
+// false for rows of another data frame (a mark's own `data`).
+function rowsFromColumns(columns, n, fields, rowIndex, plotRows) {
   const names = fields ? columnArray(fields) : Object.keys(columns || {});
   const cols = names.map(f => (n > 0 ? columnArray(columns[f]) : []));
   const index = rowIndex === null || rowIndex === undefined ? null : columnArray(rowIndex);
@@ -106,6 +146,7 @@ function rowsFromColumns(columns, n, fields, rowIndex) {
     const i = index ? index[r] : r;
     const row = {};
     for (let c = 0; c < names.length; c++) row[names[c]] = cols[c][i];
+    if (plotRows !== false) row[GLYPH_ROW] = plotRows ? plotRows[i] : i;
     rows[r] = row;
   }
   return rows;
@@ -132,12 +173,58 @@ function inflateSpec(spec) {
     if (d.from === "plot") {
       mark.data = { values: rowsFromColumns(top.columns, top.n, d.fields, d.rows) };
     } else if (d.columns) {
-      mark.data = { values: rowsFromColumns(d.columns, d.n) };
+      const plotRows = mark.own_data ? false : (mark.plot_rows === undefined ? null : columnArray(mark.plot_rows));
+      mark.data = { values: rowsFromColumns(d.columns, d.n, null, null, plotRows) };
     }
   }
 
   if (spec.layout && spec.layout.inset) inflateSpec(spec.layout.inset);
   return spec;
+}
+
+// ---- Selections reported to Shiny ---------------------------------------------
+//
+// A widget keeps what the user has selected as rows of the plot's data, in a
+// small tree of slots: one slot per plot, holding a Set of 0-based row
+// numbers, or null when nothing is selected. A brush, a click select or a
+// legend click replaces its plot's set. A facet() grid has a slot per panel;
+// the panels split one data frame, so it reports their union. A compose()
+// layout has a slot per panel, nested layouts included.
+
+function selectionSlot(kind, onChange, names) {
+  return { kind, rows: null, children: [], names: names === undefined ? null : columnArray(names), onChange };
+}
+
+function childSlot(parent, kind, names) {
+  if (!parent) return null;
+  const slot = selectionSlot(kind, parent.onChange, names);
+  parent.children.push(slot);
+  return slot;
+}
+
+function setSlotRows(slot, rows) {
+  if (!slot) return;
+  slot.rows = rows;
+  slot.onChange();
+}
+
+// The value Shiny receives, before R turns it into input$<id>_selected (see
+// selection_from_json() in R/shiny.R): null when nothing is selected, the
+// sorted 1-based row numbers for a plot or facet grid, and for a layout
+// {panels: [one value per panel], names: [...]}, or null when no panel has a
+// selection.
+function selectionValue(slot) {
+  if (!slot) return null;
+  if (slot.kind === "layout") {
+    const panels = slot.children.map(selectionValue);
+    if (panels.every(v => v === null)) return null;
+    return slot.names ? { panels, names: slot.names } : { panels };
+  }
+  const sets = (slot.kind === "facets" ? slot.children.map(c => c.rows) : [slot.rows]).filter(Boolean);
+  if (sets.length === 0) return null;
+  const rows = new Set();
+  sets.forEach(s => s.forEach(r => rows.add(r)));
+  return [...rows].sort((a, b) => a - b).map(r => r + 1);
 }
 
 // ---- Core single-spec renderer ------------------------------------------------
@@ -261,14 +348,19 @@ function renderSpecInto(container, spec, opts) {
   let externalListener = null;
   const emitSelection = (idxSet) => { if (externalListener) externalListener(idxSet); };
 
+  // What this plot reports as selected: a Set of the plot's rows, or null.
+  const report = rows => setSlotRows(opts.selectionSlot, rows);
+
   // --- Draw marks ---
   const markRegistry = [];
   for (const mark of (spec.marks || [])) {
     const markData = (mark.data && mark.data.values) || data;
+    const before = markRegistry.length;
     drawMark(plotArea, mark, markData, scales, innerW, innerH, theme, spec, markRegistry);
+    for (let k = before; k < markRegistry.length; k++) markRegistry[k].mark = mark;
   }
   // wire up emitSelection into interactive marks (click select) drawn above
-  markRegistry.forEach(entry => { entry.emitSelection = emitSelection; });
+  markRegistry.forEach(entry => { entry.emitSelection = emitSelection; entry.report = report; });
 
   // --- Brush and zoom ---
   // One brush and one zoom per plot, covering every mark, so with several
@@ -280,7 +372,7 @@ function renderSpecInto(container, spec, opts) {
   if (interact.brush?.enabled) {
     const brushable = markRegistry.filter(e => e.brush);
     if (brushable.length) {
-      addBrush(plotArea, brushable, innerW, innerH, dragState, emitSelection);
+      addBrush(plotArea, brushable, innerW, innerH, dragState, emitSelection, report);
     }
   }
   if (interact.zoom?.enabled) {
@@ -291,7 +383,7 @@ function renderSpecInto(container, spec, opts) {
   const selections = spec.interact?.selections || {};
   const legendSel = Object.values(selections).find(s => s.type === "legend");
   if (legendSel && scales.color) {
-    drawLegend(svg, scales.color, legendSel, markRegistry, W, basePad, theme, spec.scales?.color?.label);
+    drawLegend(svg, scales.color, legendSel, markRegistry, W, basePad, theme, spec.scales?.color?.label, report);
   }
 
   // --- Draw titles ---
@@ -440,7 +532,8 @@ function unionExtents(extents) {
   return [d3.min(valid, e => e[0]), d3.max(valid, e => e[1])];
 }
 
-function renderLayout(container, layoutSpec, fallbackW, fallbackH) {
+// `slot` collects the panels' selections, one child slot per panel in order.
+function renderLayout(container, layoutSpec, fallbackW, fallbackH, slot) {
   const panels = layoutSpec.panels || [];
   const n = panels.length;
   const gap = layoutSpec.gap ?? 10;
@@ -490,13 +583,15 @@ function renderLayout(container, layoutSpec, fallbackW, fallbackH) {
 
     let result;
     if (panelSpec.type === "layout") {
-      renderLayout(cell.node(), panelSpec, colWidths[c], rowHeights[r]);
+      renderLayout(cell.node(), panelSpec, colWidths[c], rowHeights[r],
+                   childSlot(slot, "layout", panelSpec.panel_names));
       result = null;
     } else {
       result = renderSpecInto(cell.node(), panelSpec, {
         width: colWidths[c],
         height: rowHeights[r],
-        forceDomain: forceDomain
+        forceDomain: forceDomain,
+        selectionSlot: childSlot(slot, "plot")
       });
     }
     panelResults.push(result);
@@ -533,7 +628,8 @@ function sharedAxesFromFree(free) {
   return "both"; // "none" (default)
 }
 
-function renderFacets(container, spec, fallbackW, fallbackH) {
+// `slot` collects the panels' selections, one child slot per panel.
+function renderFacets(container, spec, fallbackW, fallbackH, slot) {
   const facets = spec.facets;
   const data = spec.data?.values || [];
   const colsField = facets.cols;
@@ -620,7 +716,8 @@ function renderFacets(container, spec, fallbackW, fallbackH) {
     renderSpecInto(cell.node(), facetSpecs[i], {
       width: cellW,
       height: cellH - 18,
-      forceDomain: forceDomain
+      forceDomain: forceDomain,
+      selectionSlot: childSlot(slot, "plot")
     });
   });
 }
@@ -834,6 +931,23 @@ function registerMark(markRegistry, selection, baseOpacity, extra) {
 
 function rowsOfDatum(entry, d, i) {
   return entry.rowsOf ? entry.rowsOf(d, i) : [i];
+}
+
+// The rows of the plot's data (0-based) an element draws, for the selection
+// reported to Shiny: a row-level element's own row, or every row a box, bin
+// or polygon summarises. A summary's `.rows` count only the rows its mark
+// kept, so they go through the mark's `plot_rows` when rows were dropped
+// for missing values. A mark with its own `data` draws rows of another data
+// frame and contributes none.
+function plotRowsOfDatum(entry, d, i) {
+  const mark = entry.mark;
+  if (!mark || mark.own_data) return [];
+  if (entry.rowsOf) {
+    const map = mark.plot_rows === undefined ? null : columnArray(mark.plot_rows);
+    return entry.rowsOf(d, i).map(r => (map ? map[r] : r));
+  }
+  const row = d ? d[GLYPH_ROW] : undefined;
+  return row === undefined ? [] : [row];
 }
 
 // Horizontal position of a row-level mark (points, sina). On a band
@@ -1631,7 +1745,9 @@ function drawInset(svg, layout, W, H) {
 
 // ---- Legend (selection type = "legend") ------------------------------------------
 
-function drawLegend(svg, colorScale, legendSel, markRegistry, W, topPad, theme, label) {
+// Clicking an entry hides or shows its rows. The rows still shown are the
+// plot's selection (`report`); with every entry shown there is none.
+function drawLegend(svg, colorScale, legendSel, markRegistry, W, topPad, theme, label, report) {
   const domain = colorScale.domain();
   const fg = theme.fg || "#333";
   const font = theme.font || "system-ui";
@@ -1688,6 +1804,19 @@ function drawLegend(svg, colorScale, legendSel, markRegistry, W, topPad, theme, 
         return active.has(key) ? entry.baseOpacity : Math.min(entry.baseOpacity, 0.08);
       });
     });
+
+    if (active.size === domain.length) {
+      report(null);
+      return;
+    }
+    const rows = new Set();
+    markRegistry.forEach(entry => {
+      entry.selection.each(function(datum, i) {
+        const key = legendKeyForDatum(datum, colorScale);
+        if (key !== undefined && active.has(key)) plotRowsOfDatum(entry, datum, i).forEach(r => rows.add(r));
+      });
+    });
+    report(rows);
   });
 }
 
@@ -1999,6 +2128,15 @@ function addClickSelect(selection, action, baseOpacity, markRegistry) {
       }
       entry.emitSelection(rows);
     }
+    if (entry && entry.report) {
+      let plotRows = null;
+      if (selectedIdx) {
+        const nodes = selection.nodes();
+        plotRows = new Set();
+        selectedIdx.forEach(j => plotRowsOfDatum(entry, nodes[j].__data__, j).forEach(r => plotRows.add(r)));
+      }
+      entry.report(plotRows);
+    }
   });
 }
 
@@ -2039,7 +2177,9 @@ function registerBrushForEscape(node, clear) {
 // any selected row, so the boxes containing the brushed points light up too.
 // With only summary marks (boxes, violins, bins), the summary elements
 // themselves are hit-tested and select all the rows they draw.
-function addBrush(g, entries, w, h, dragState, emitSelection) {
+// Linked panels follow the brush as it moves (`emitSelection`); the plot's
+// rows are reported (`report`) once, when the brush ends or is cleared.
+function addBrush(g, entries, w, h, dragState, emitSelection, report) {
   const rowLevel = entries.filter(e => e.brush.rowLevel);
   const hitTested = rowLevel.length ? rowLevel : entries;
 
@@ -2057,6 +2197,7 @@ function addBrush(g, entries, w, h, dragState, emitSelection) {
   function clearSelection() {
     entries.forEach(entry => entry.selection.attr("opacity", entry.baseOpacity));
     emitSelection(new Set());
+    report(null);
   }
 
   // Forwards a tap/click that landed on the brush overlay to the element
@@ -2110,10 +2251,12 @@ function addBrush(g, entries, w, h, dragState, emitSelection) {
         return;
       }
       const idxSet = new Set();
+      const plotRows = new Set();
       hitTested.forEach(entry => {
         entry.selection.each(function(d, i) {
           if (entry.brush.hit(d, i, this, selection)) {
             rowsOfDatum(entry, d, i).forEach(r => idxSet.add(r));
+            plotRowsOfDatum(entry, d, i).forEach(r => plotRows.add(r));
           }
         });
       });
@@ -2122,6 +2265,7 @@ function addBrush(g, entries, w, h, dragState, emitSelection) {
           entry.brush.opacity(rowsOfDatum(entry, d, i).some(r => idxSet.has(r))));
       });
       emitSelection(idxSet);
+      if (event.type === "end") report(plotRows);
     });
 
   const brushG = g.append("g").attr("class", "brush").call(brush);
