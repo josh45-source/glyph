@@ -160,7 +160,7 @@ added later without changing how plots are written. See
 
 ## Status
 
-glyph is at version 0.1. It has point, line, bar, area, text, rule, ribbon,
+glyph is at version 0.2. It has point, line, bar, area, text, rule, ribbon,
 link and polygon marks, and boxplot, violin, sina and histogram marks that
 compute their statistics from the data. It supports tooltips, hover, click, zoom,
 brushing and crossfilter; entrance and keyframe animation; `compose()`,
