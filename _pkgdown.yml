@@ -31,6 +31,8 @@ navbar:
       menu:
       - text: "Getting Started"
         href: articles/getting-started.html
+      - text: "Using glyph in Shiny"
+        href: articles/shiny.html
       - text: "Adding a custom mark"
         href: articles/custom-marks.html
     github:
@@ -118,11 +120,20 @@ reference:
   - export
   - to_vegalite
 
+- title: Shiny
+  desc: Use plots in Shiny apps and read what the user selects.
+  contents:
+  - glyph-shiny
+
 articles:
 - title: Get started
   navbar: ~
   contents:
   - getting-started
+
+- title: Shiny
+  contents:
+  - shiny
 
 - title: Extending glyph
   contents:

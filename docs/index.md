@@ -71,7 +71,9 @@ writes a plot to an HTML or JSON file.
 The [Getting Started
 guide](https://josh45-source.github.io/glyph/articles/getting-started.md)
 runs through each feature with live plots you can hover, zoom and brush.
-The [function
+[Using glyph in
+Shiny](https://josh45-source.github.io/glyph/articles/shiny.md) shows
+how to read what the user selects from a Shiny server. The [function
 reference](https://josh45-source.github.io/glyph/reference/index.md)
 lists everything glyph exports, and
 [ARCHITECTURE.md](https://josh45-source.github.io/glyph/ARCHITECTURE.md)

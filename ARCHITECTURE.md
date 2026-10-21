@@ -81,8 +81,12 @@ interact(
 ```
 
 Because they are part of the spec, interactions are kept when a plot is
-exported to HTML. They can be described without knowing the renderer, and
-a future Shiny integration could read selection events on the server.
+exported to HTML, and they can be described without knowing the renderer.
+In a Shiny app, the renderer sends each selection to the server as row
+numbers of the plot's data (`input$<id>_selected`). Every row it draws
+remembers which row of the data it came from, so the numbers stay right
+when rows are dropped for missing values or summarised by a statistical
+mark.
 
 ## 5. Theme tokens
 

@@ -33,7 +33,11 @@ Suggests:
     rmarkdown,
     chromote,
     htmltools,
-    withr
+    withr,
+    shiny (>= 1.5.0),
+    callr,
+    httpuv,
+    pkgload
 VignetteBuilder: knitr
 URL: https://github.com/josh45-source/glyph, https://josh45-source.github.io/glyph/
 BugReports: https://github.com/josh45-source/glyph/issues

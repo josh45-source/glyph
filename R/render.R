@@ -88,7 +88,10 @@ compile.glyph_spec <- function(spec, engine = "auto",
     same <- vapply(as.character(d$fields), function(f) {
       identical(enriched_data[[f]], resolved[[i]]$enriched[[f]])
     }, logical(1))
-    if (!all(same)) resolved_marks[[i]]$data <- df_to_columns(resolved[[i]]$frame)
+    if (!all(same)) {
+      resolved_marks[[i]]$data <- df_to_columns(resolved[[i]]$frame)
+      resolved_marks[[i]]$plot_rows <- resolved[[i]]$kept
+    }
   }
 
   # Step 3: Auto-detect scale types from data (including computed mappings)
@@ -153,11 +156,14 @@ compile.glyph_layout <- function(spec, engine = "auto",
   compiled_panels <- lapply(spec$plots, compile,
                              engine = engine, width = width, height = height)
 
+  # Panels go as an array, in order, even when compose() was given names
+  # (a named list would become a JSON object). The names go alongside, to
+  # name the parts of the layout's selection in Shiny.
   json_spec <- list(
     `$schema`          = "glyph/v0.2",
     type               = "layout",
     layout_type        = spec$type,
-    panels             = lapply(compiled_panels, function(c) c$spec),
+    panels             = unname(lapply(compiled_panels, function(c) c$spec)),
     widths             = spec$widths,
     heights            = spec$heights,
     gap                = spec$gap,
@@ -165,6 +171,7 @@ compile.glyph_layout <- function(spec, engine = "auto",
     linked_selections  = spec$linked_selections,
     title              = spec$title
   )
+  if (!is.null(names(spec$plots))) json_spec$panel_names <- I(names(spec$plots))
 
   structure(
     list(
@@ -339,6 +346,9 @@ resolve_mark <- function(mark, global_data, global_mappings, extra_cols = list()
     data     = df_to_columns(work_data)
   )
 
+  # The plot's rows this mark keeps (0-based), or NULL when it keeps them all.
+  kept <- if (uses_global_data && !is.null(keep) && !all(keep)) I(which(keep) - 1L) else NULL
+
   # A mark drawing the plot's own rows doesn't send them again: it names the
   # columns it uses (in its own order) and, if rows were dropped for missing
   # values, which rows it keeps. compile.glyph_spec() sends those columns
@@ -347,7 +357,7 @@ resolve_mark <- function(mark, global_data, global_mappings, extra_cols = list()
     mark_json$data <- list(
       from   = "plot",
       fields = I(names(work_data)),
-      rows   = if (is.null(keep) || all(keep)) NULL else I(which(keep) - 1L)
+      rows   = kept
     )
   }
 
@@ -360,9 +370,17 @@ resolve_mark <- function(mark, global_data, global_mappings, extra_cols = list()
     mark_json$encoding <- st$encoding
     mark_json$data <- if (!is.null(st$frame)) df_to_columns(st$frame) else list(values = st$records)
     mark_json$stat <- st$stat
+    if (!is.null(kept)) mark_json$plot_rows <- kept
   }
 
-  list(mark_json = mark_json, enriched = enriched, frame = work_data)
+  # Selections are reported to Shiny as rows of the plot's data (see
+  # selectionValue() in glyph.js). A statistical mark's rows, and its
+  # summaries' `.rows`, count only the rows it kept, so `plot_rows` says
+  # which of the plot's rows those are. A mark with its own `data` draws
+  # rows of another data frame and takes no part.
+  if (!uses_global_data) mark_json$own_data <- TRUE
+
+  list(mark_json = mark_json, enriched = enriched, frame = work_data, kept = kept)
 }
 
 #' Find rows with NA in any mapped position aesthetic, and warn

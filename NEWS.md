@@ -1,5 +1,22 @@
 # glyph (development version)
 
+* glyph works in Shiny (#34). `glyphOutput()` and `renderGlyph()` place
+  and draw a plot, and `renderGlyph()` takes a plot, a `compose()` layout or
+  a widget from `render()`. What the user selects reaches the server as
+  `input$<outputId>_selected`: the row numbers of the data frame given to
+  `glyph()`, so `data[input$plot_selected, ]` gives the selected rows. The
+  numbers stay right when rows with missing values are dropped and when a
+  mapping is computed, and selecting a box, bin or polygon selects the rows
+  it summarises. The value is sent when a brush ends, on a click select and
+  on a legend click, and clearing a selection sends `NULL`. A `facet()` grid
+  gives one vector, and a `compose()` layout gives a list with one entry per
+  panel, named after the panels when `compose()` is given names. shiny is
+  suggested, not required. A new article, "Using glyph in Shiny"
+  (`vignette("shiny", package = "glyph")`), is built around an example app
+  in `inst/examples/shiny-brush`.
+* `compose()` with named arguments, such as `compose(a = p1, b = p2)`, now
+  draws. The panels were sent as an object keyed by name instead of a list,
+  and the widget showed a render error.
 * New article, "Adding a custom mark" (`vignette("custom-marks")`), walks
   through adding a mark type end to end with a worked example (#9). It
   covers the R function and `add_mark()`, how mappings are resolved when

@@ -1,17 +1,6 @@
 # Each test here covers a bug we've had in the browser. See helper-browser.R
 # for how they run and when they're skipped.
 
-# Puts several widgets on one page, each in a div with the given id.
-save_widgets <- function(widgets, env = parent.frame()) {
-  dir <- withr::local_tempdir(.local_envir = env)
-  file <- file.path(dir, "page.html")
-  tags <- lapply(names(widgets), function(id) {
-    htmltools::div(id = id, style = "width:600px;height:400px;margin-bottom:20px;", widgets[[id]])
-  })
-  htmltools::save_html(htmltools::tagList(tags), file, libdir = "lib")
-  file
-}
-
 shapes <- data.frame(
   id = rep(c("tri", "square", "notch"), times = c(3, 4, 6)),
   x = c(0, 2, 1, 3, 5, 5, 3, 6, 9, 9, 7.5, 6, 6),
