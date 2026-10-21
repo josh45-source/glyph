@@ -1,5 +1,11 @@
 # glyph
 
+I built glyph so I could make interactive graphs straight from my R
+scripts, without writing a lot of extra code just to make a plot
+interactive. It is for anyone who wants a simpler grammar for
+interactive graphics in R. glyph is in its early stages, and new
+features are being added regularly.
+
 ``` r
 
 install.packages("glyph")
