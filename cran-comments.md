@@ -15,14 +15,25 @@ This is a feature and bug-fix release.
 ## Test environments
 
 * GitHub Actions, `R CMD check` on every pull request:
-  * macOS (macos-latest), R release
-  * Windows (windows-latest), R release
-  * Ubuntu (ubuntu-latest), R devel, R release and R oldrel-1
+  * macOS (macos-latest), R release (4.6.1)
+  * Windows (windows-latest), R release (4.6.1)
+  * Ubuntu 24.04 (ubuntu-latest), R devel, R release (4.6.1) and
+    R oldrel-1
+* GitHub Actions, Ubuntu 24.04, R 4.6.1: `R CMD check --as-cran` with the
+  remote and incoming checks and the PDF manual
 * local Ubuntu 24.04, R 4.5.3
 
 ## R CMD check results
 
 0 errors | 0 warnings | 0 notes
+
+Two notes appeared only on our own machines:
+
+* "checking HTML version of manual ... Skipping checking HTML validation:
+  no command 'tidy' found" on the GitHub Actions runner, which has no HTML
+  Tidy.
+* "checking for future file timestamps ... unable to verify current time"
+  on the local machine, which had no network access.
 
 ## Tests
 
