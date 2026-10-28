@@ -122,6 +122,12 @@ HTMLWidgets.widget({
 // one object per box, bin or polygon ({values}). inflateSpec() turns the
 // first two back into row objects ({values}) with the same keys, in the same
 // order, so everything below works on exactly the data it always has.
+//
+// Date and date-time fields arrive as milliseconds and are named in
+// `temporal` (see temporal_ms() in R/render.R). They become Date objects here,
+// once, so scales, marks, tooltips and brushing all see the same values. A
+// Date's UTC fields hold the date or clock time as R prints it, so they are
+// drawn on UTC scales and shown with UTC formats.
 
 // jsonlite writes a one-element vector as a bare value, not an array.
 function columnArray(v) {
@@ -135,21 +141,33 @@ function columnArray(v) {
 const GLYPH_ROW = Symbol("glyph row");
 
 // `plotRows` maps column position to plot row: null when they are the same,
-// false for rows of another data frame (a mark's own `data`).
-function rowsFromColumns(columns, n, fields, rowIndex, plotRows) {
+// false for rows of another data frame (a mark's own `data`). `temporal` is
+// the set of date and date-time fields.
+function rowsFromColumns(columns, n, fields, rowIndex, plotRows, temporal) {
   const names = fields ? columnArray(fields) : Object.keys(columns || {});
   const cols = names.map(f => (n > 0 ? columnArray(columns[f]) : []));
+  const isDate = names.map(f => !!temporal && temporal.has(f));
   const index = rowIndex === null || rowIndex === undefined ? null : columnArray(rowIndex);
   const count = index ? index.length : n;
   const rows = new Array(count);
   for (let r = 0; r < count; r++) {
     const i = index ? index[r] : r;
     const row = {};
-    for (let c = 0; c < names.length; c++) row[names[c]] = cols[c][i];
+    for (let c = 0; c < names.length; c++) row[names[c]] = isDate[c] ? toDate(cols[c][i]) : cols[c][i];
     if (plotRows !== false) row[GLYPH_ROW] = plotRows ? plotRows[i] : i;
     rows[r] = row;
   }
   return rows;
+}
+
+// The date and date-time fields of a data payload.
+function temporalFields(d) {
+  return new Set(d && d.temporal ? columnArray(d.temporal) : []);
+}
+
+// A missing date stays missing rather than becoming 1970-01-01.
+function toDate(v) {
+  return v === null || v === undefined ? v : new Date(v);
 }
 
 // Rebuilds row objects throughout a compiled spec: the plot's own data, each
@@ -165,16 +183,25 @@ function inflateSpec(spec) {
   }
 
   const top = spec.data || {};
-  if (top.columns) spec.data = { values: rowsFromColumns(top.columns, top.n) };
+  const topTemporal = temporalFields(top);
+  if (top.columns) spec.data = { values: rowsFromColumns(top.columns, top.n, null, null, undefined, topTemporal) };
 
   for (const mark of (spec.marks || [])) {
     const d = mark.data;
     if (!d) continue;
+    const temporal = d.from === "plot" ? topTemporal : temporalFields(d);
     if (d.from === "plot") {
-      mark.data = { values: rowsFromColumns(top.columns, top.n, d.fields, d.rows) };
+      mark.data = { values: rowsFromColumns(top.columns, top.n, d.fields, d.rows, undefined, temporal) };
     } else if (d.columns) {
       const plotRows = mark.own_data ? false : (mark.plot_rows === undefined ? null : columnArray(mark.plot_rows));
-      mark.data = { values: rowsFromColumns(d.columns, d.n, null, null, plotRows) };
+      mark.data = { values: rowsFromColumns(d.columns, d.n, null, null, plotRows, temporal) };
+    } else if (d.values && temporal.size) {
+      // Statistical summaries: dates in their grouping fields.
+      d.values.forEach(rec => temporal.forEach(f => { if (f in rec) rec[f] = toDate(rec[f]); }));
+    }
+    // A statistical mark's groups of dates, which its axis lists.
+    for (const enc of Object.values(mark.encoding || {})) {
+      if (enc && enc.domain && temporal.has(enc.field)) enc.domain = columnArray(enc.domain).map(toDate);
     }
   }
 
@@ -638,14 +665,25 @@ function renderFacets(container, spec, fallbackW, fallbackH, slot) {
   let cellSpecs = []; // { label, match, row, col }
   let rows, cols;
 
+  // A field's values, one per panel, as [key, value] pairs. Dates are
+  // compared and ordered by their time (valueKey()), and panels match rows by
+  // the same key. Other values keep their string order.
+  const panelValues = field => {
+    const byKey = new Map();
+    data.forEach(d => { const k = valueKey(d[field]); if (!byKey.has(k)) byKey.set(k, d[field]); });
+    const keys = [...byKey.keys()];
+    const dates = [...byKey.values()].some(v => v instanceof Date);
+    return (dates ? keys.sort((a, b) => a - b) : keys.sort()).map(k => [k, byKey.get(k)]);
+  };
+
   if (colsField && rowsField) {
-    const colVals = [...new Set(data.map(d => d[colsField]))].sort();
-    const rowVals = [...new Set(data.map(d => d[rowsField]))].sort();
-    rowVals.forEach((rv, ri) => {
-      colVals.forEach((cv, ci) => {
+    const colVals = panelValues(colsField);
+    const rowVals = panelValues(rowsField);
+    rowVals.forEach(([rk, rv], ri) => {
+      colVals.forEach(([ck, cv], ci) => {
         cellSpecs.push({
-          label: `${rowsField}=${rv}, ${colsField}=${cv}`,
-          match: d => d[rowsField] === rv && d[colsField] === cv,
+          label: `${rowsField}=${formatValue(rv)}, ${colsField}=${formatValue(cv)}`,
+          match: d => valueKey(d[rowsField]) === rk && valueKey(d[colsField]) === ck,
           row: ri, col: ci
         });
       });
@@ -654,12 +692,12 @@ function renderFacets(container, spec, fallbackW, fallbackH, slot) {
     cols = colVals.length;
   } else {
     const field = colsField || rowsField;
-    const vals = [...new Set(data.map(d => d[field]))].sort();
+    const vals = panelValues(field);
     cols = facets.wrap || Math.ceil(Math.sqrt(vals.length));
-    vals.forEach((v, i) => {
+    vals.forEach(([k, v], i) => {
       cellSpecs.push({
-        label: `${field} = ${v}`,
-        match: d => d[field] === v,
+        label: `${field} = ${formatValue(v)}`,
+        match: d => valueKey(d[field]) === k,
         row: Math.floor(i / cols), col: i % cols
       });
     });
@@ -756,8 +794,13 @@ function buildScale(encoding, data, range, scaleOpts, forcedDomain, dataExtent) 
   }
 
   if (type === "temporal") {
-    const domain = forcedDomain || d3.extent(data, d => new Date(d[field]));
-    return d3.scaleTime().domain(domain).range(range);
+    // UTC, since dates and date-times arrive with their values in UTC fields
+    // (see inflateSpec()). A domain may be dates or milliseconds.
+    let domain = (forcedDomain || opts.domain || dataExtent || d3.extent(data, d => d[field])).map(v => +v);
+    if (!(isFinite(domain[0]) && isFinite(domain[1]))) domain = [0, 864e5];
+    if (domain[0] === domain[1]) domain = [domain[0] - 864e5, domain[1] + 864e5];
+    const s = d3.scaleUtc().domain(domain).range(range);
+    return opts.nice !== false ? s.nice() : s;
   }
 
   if (type === "nominal" || type === "ordinal") {
@@ -816,8 +859,9 @@ function drawAxes(g, scales, w, h, theme, scaleSpecs) {
   const fg = theme.fg || "#333";
 
   if (scales.x) {
+    // Groups on a band axis can be dates (a boxplot by date, say).
     const xAxis = scales.x.bandwidth
-      ? d3.axisBottom(scales.x)
+      ? d3.axisBottom(scales.x).tickFormat(formatValue)
       : d3.axisBottom(scales.x).ticks(6);
 
     const xG = g.append("g")
@@ -844,7 +888,9 @@ function drawAxes(g, scales, w, h, theme, scaleSpecs) {
   }
 
   if (scales.y) {
-    const yAxis = d3.axisLeft(scales.y).ticks(6);
+    const yAxis = scales.y.bandwidth
+      ? d3.axisLeft(scales.y).tickFormat(formatValue)
+      : d3.axisLeft(scales.y).ticks(6);
     const yG = g.append("g")
       .attr("class", "axis-y")
       .call(yAxis);
@@ -1162,7 +1208,7 @@ function drawText(g, data, enc, scales, style, interact, theme) {
     .attr("fill", d => scales.color ? scales.color(getVal(d, enc.color)) : (theme.fg || "#333"))
     .attr("text-anchor", "middle")
     .attr("dy", -6)
-    .text(d => labelEnc?.field ? d[labelEnc.field] : "");
+    .text(d => labelEnc?.field ? formatValue(d[labelEnc.field]) : "");
 
   if (interact.tooltip?.enabled) addTooltip(texts, data, enc, interact.tooltip, theme);
 
@@ -1278,7 +1324,7 @@ function groupLines(d, enc) {
     // keeps its expression as the label. The single group of a boxplot with
     // no x mapping has neither, and needs no line.
     const name = e.label || (e.field.startsWith(".") ? null : e.field);
-    if (name) lines.push(`${name}: ${d[e.field]}`);
+    if (name) lines.push(`${name}: ${formatValue(d[e.field])}`);
   }
   return lines;
 }
@@ -1787,7 +1833,7 @@ function drawLegend(svg, colorScale, legendSel, markRegistry, W, topPad, theme, 
     .attr("font-family", font)
     .attr("font-size", 10)
     .attr("fill", fg)
-    .text(d => d);
+    .text(d => formatValue(d));
 
   items.on("click", function(event, d) {
     if (active.has(d)) active.delete(d); else active.add(d);
@@ -1827,14 +1873,37 @@ function legendKeyForDatum(datum, colorScale) {
   // call scales.color(getVal(d, enc.color)), the raw field value IS the key
   // — but we don't have `enc` here, so approximate via domain membership by
   // checking every field on the datum against the scale's domain.
+  // The domain entry itself is returned, as the legend keys its entries by
+  // them; dates are matched by their time (valueKey()).
   const domain = colorScale.domain();
+  const keys = domain.map(valueKey);
   for (const key in datum) {
-    if (domain.includes(datum[key])) return datum[key];
+    const i = keys.indexOf(valueKey(datum[key]));
+    if (i >= 0) return domain[i];
   }
   return undefined;
 }
 
 // ---- Helpers ----------------------------------------------------------------
+
+// A value as text, for tooltips and labels. A date shows as 2024-03-10, and
+// a date-time with its time of day, as R prints them.
+const formatDay = d3.utcFormat("%Y-%m-%d");
+const formatMinute = d3.utcFormat("%Y-%m-%d %H:%M");
+const formatSecond = d3.utcFormat("%Y-%m-%d %H:%M:%S");
+function formatValue(v) {
+  if (!(v instanceof Date)) return v;
+  if (isNaN(v)) return "NA";
+  if (v.getUTCSeconds() || v.getUTCMilliseconds()) return formatSecond(v);
+  if (v.getUTCHours() || v.getUTCMinutes()) return formatMinute(v);
+  return formatDay(v);
+}
+
+// Dates are different objects for equal values, so sets and lookups compare
+// them by their time.
+function valueKey(v) {
+  return v instanceof Date ? +v : v;
+}
 
 function getVal(d, encoding) {
   if (!encoding) return 0;
@@ -2034,12 +2103,12 @@ function addTooltip(selection, data, enc, tooltipConfig, theme, autoText) {
       // name (".g_point_1_x") means nothing to a reader, so show its
       // expression (the label) instead.
       for (const [key, val] of Object.entries(enc)) {
-        if (val?.field) text += `${val.label || val.field}: ${d[val.field]}\n`;
+        if (val?.field) text += `${val.label || val.field}: ${formatValue(d[val.field])}\n`;
       }
     } else {
       // Template string. Field names may contain dots, so a template can
       // also show a statistical mark's values, e.g. "{.median}".
-      text = tooltipConfig.template.replace(/\{([\w.]+)\}/g, (_, k) => d[k] ?? k);
+      text = tooltipConfig.template.replace(/\{([\w.]+)\}/g, (_, k) => (d[k] ?? null) === null ? k : formatValue(d[k]));
     }
     return text.trim().replace(/\n/g, "<br>");
   }
@@ -2812,7 +2881,7 @@ function applyMorphAnimation(g, scales, spec, animConfig, data, theme, duration,
       .attr("r", d => scales.size ? scales.size(getVal(d, enc.size)) : (style.size || 5))
       .attr("opacity", style.opacity || 0.8);
 
-    frameLabel.text(`${byField} = ${key}`);
+    frameLabel.text(`${byField} = ${formatValue(key)}`);
     if (markLayer.node().__glyphFinder) markLayer.node().__glyphFinder.invalidate();
   }
 
