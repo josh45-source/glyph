@@ -2,6 +2,22 @@
 
 ## glyph (development version)
 
+### Bug fixes
+
+- Dates and date-times are drawn where they belong
+  ([\#39](https://github.com/josh45-source/glyph/issues/39)). They went
+  to the browser as text, which marks couldn’t place, so every point and
+  every vertex of a line landed at the start of the axis. They now go as
+  numbers and become dates in the browser, on a UTC scale: a date shows
+  as the same day in every time zone, and a date-time shows the clock
+  time of its own time zone. Tooltips, facet labels and legends show
+  them as R prints them, such as 1967-07-01. A domain set with
+  [`set_scale()`](https://josh45-source.github.io/glyph/reference/set_scale.md)
+  can be dates. In the compiled JSON, date and date-time columns are
+  milliseconds from 1970-01-01 read in UTC (a date-time as its clock
+  time in its own time zone), and are named in the data’s `temporal`
+  field.
+
 ## glyph 0.2.0
 
 CRAN release: 2026-10-21
