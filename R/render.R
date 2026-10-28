@@ -96,6 +96,12 @@ compile.glyph_spec <- function(spec, engine = "auto",
 
   # Step 3: Auto-detect scale types from data (including computed mappings)
   resolved_scales <- resolve_scales(spec$scales, spec$mappings, spec$data)
+  # A domain of dates, as in set_scale("x", domain = as.Date(...)), goes as
+  # numbers, like the dates in the data.
+  for (aes in names(resolved_scales)) {
+    domain <- resolved_scales[[aes]]$domain
+    if (is_temporal(domain)) resolved_scales[[aes]]$domain <- temporal_ms(domain)
+  }
   # A histogram's y axis shows counts, which no mapping names.
   is_histogram <- vapply(resolved_marks, function(m) identical(m$type, "histogram"),
                          logical(1))
@@ -368,7 +374,12 @@ resolve_mark <- function(mark, global_data, global_mappings, extra_cols = list()
     if (is.null(work_data)) work_data <- data.frame()
     st <- compute_stat(mark, work_data, encoding, facet_fields)
     mark_json$encoding <- st$encoding
-    mark_json$data <- if (!is.null(st$frame)) df_to_columns(st$frame) else list(values = st$records)
+    mark_json$data <- if (!is.null(st$frame)) df_to_columns(st$frame) else records_to_values(st$records)
+    # A group domain of dates goes as numbers too, so it matches the values.
+    for (aes in names(mark_json$encoding)) {
+      domain <- mark_json$encoding[[aes]]$domain
+      if (is_temporal(domain)) mark_json$encoding[[aes]]$domain <- I(temporal_ms(domain))
+    }
     mark_json$stat <- st$stat
     if (!is.null(kept)) mark_json$plot_rows <- kept
   }
@@ -420,12 +431,71 @@ na_position_keep <- function(data, encoding, position_aes, mark_id) {
 #'   and the renderer (inflateSpec() in glyph.js) turns it back into one
 #'   object per row before anything is drawn. A column of one value
 #'   serializes as a bare value rather than an array; the renderer allows for
-#'   that.
-#' @return \code{list(columns = <named list of column vectors>, n = <rows>)}
+#'   that. Date and date-time columns are sent as numbers (see
+#'   temporal_ms()) and named in `temporal`, so the renderer can turn them
+#'   back into dates.
+#' @return \code{list(columns = <named list of column vectors>, n = <rows>)},
+#'   plus \code{temporal} when there are date or date-time columns.
 #' @noRd
 df_to_columns <- function(data) {
   if (is.null(data)) return(list(columns = structure(list(), names = character()), n = 0L))
-  list(columns = as.list(data), n = nrow(data))
+  columns <- as.list(data)
+  temporal <- names(columns)[vapply(columns, is_temporal, logical(1))]
+  for (f in temporal) columns[[f]] <- temporal_ms(columns[[f]])
+  out <- list(columns = columns, n = nrow(data))
+  if (length(temporal) > 0) out$temporal <- I(temporal)
+  out
+}
+
+#' Statistical summaries sent to the browser, one record per element
+#' @description Records keep their grouping columns with their original
+#'   class (see group_columns() in R/stats.R). Date and date-time values in
+#'   them are sent as numbers and named in `temporal`, as in
+#'   df_to_columns().
+#' @noRd
+records_to_values <- function(records) {
+  temporal <- character()
+  records <- lapply(records, function(r) {
+    for (f in names(r)) {
+      if (is_temporal(r[[f]])) {
+        r[[f]] <- temporal_ms(r[[f]])
+        temporal <<- union(temporal, f)
+      }
+    }
+    r
+  })
+  out <- list(values = records)
+  if (length(temporal) > 0) out$temporal <- I(temporal)
+  out
+}
+
+#' @noRd
+is_temporal <- function(x) inherits(x, c("Date", "POSIXt"))
+
+#' Dates and date-times as the numbers sent to the browser
+#' @description Milliseconds since 1970-01-01 UTC. A Date is midnight UTC of
+#'   that day. A date-time is its clock time in its own time zone (the
+#'   `tzone` attribute, or the session's zone when there is none), read as
+#'   UTC: for a UTC date-time that is the same instant. The renderer draws and
+#'   labels these values in UTC, so dates and times read as R prints them, in
+#'   any viewer's time zone and across daylight saving changes.
+#' @noRd
+temporal_ms <- function(x) {
+  if (inherits(x, "Date")) return(as.numeric(x) * 86400000)
+  x <- as.POSIXct(x)
+  secs <- as.numeric(x)
+  tz <- attr(x, "tzone")[1]
+  if (is.null(tz) || is.na(tz)) tz <- ""
+  if (!tz %in% c("UTC", "GMT", "Etc/UTC", "Etc/GMT")) {
+    offset <- as.POSIXlt(x, tz = tz)$gmtoff
+    if (is.null(offset) || anyNA(offset[!is.na(x)])) {
+      wall <- as.POSIXct(format(x, "%Y-%m-%d %H:%M:%OS6", tz = tz),
+                         tz = "UTC", format = "%Y-%m-%d %H:%M:%OS")
+      offset <- as.numeric(wall) - secs
+    }
+    secs <- secs + offset
+  }
+  secs * 1000
 }
 
 #' The fields marginals() reads from the plot's data: the first x and y

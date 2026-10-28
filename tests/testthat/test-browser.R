@@ -277,3 +277,65 @@ test_that("Reset zoom returns the plot to its original view", {
   expect_equal(view(), original, tolerance = 1e-9)
   expect_length(page_errors(s), 0)
 })
+
+test_that("dates and date-times are spread along their axis, in any time zone (#39)", {
+  skip_if_no_browser()
+  # Monthly dates, as in ggplot2::economics, which drew every point at x = 0.
+  econ <- data.frame(
+    date = seq(as.Date("1967-07-01"), by = "month", length.out = 24),
+    unemploy = seq(2900, by = 50, length.out = 24)
+  )
+  days <- data.frame(date = as.Date("2024-01-01") + 0:9, v = 1:10)
+  # Hours across the start of daylight saving time in New York.
+  times <- data.frame(t = as.POSIXct("2024-03-10 00:00", tz = "America/New_York") + 3600 * 0:5, v = 1:6)
+  # A browser eight hours behind UTC, where a date read as local time would
+  # show the day before.
+  s <- open_page(save_widgets(list(
+    point = render(glyph(econ, x = date, y = unemploy) |> mark_point() |> interact(tooltip = TRUE)),
+    line = render(glyph(econ, x = date, y = unemploy) |> mark_line()),
+    days = render(glyph(days, x = date, y = v) |> mark_point()),
+    time = render(glyph(times, x = t, y = v) |> mark_point() |> interact(tooltip = TRUE)),
+    ydate = render(glyph(econ, x = unemploy, y = date) |> mark_point())
+  )), width = 800, height = 2300, timezone = "America/Los_Angeles")
+  positions <- function(id, attr) {
+    unlist(js(s, sprintf("[...document.querySelectorAll('#%s circle')].map(c => +c.getAttribute('%s'))", id, attr)))
+  }
+
+  # Each date at its own place, in date order.
+  x <- positions("point", "cx")
+  expect_length(unique(x), nrow(econ))
+  expect_true(all(diff(x) > 0))
+  expect_true(all(diff(positions("time", "cx")) > 0))
+  expect_true(all(diff(positions("ydate", "cy")) < 0))
+  expect_false(js(s, "document.querySelector('#line path.marks-line').getAttribute('d').includes('NaN')"))
+
+  # Daily ticks fall on UTC midnights, each where the point for that day is
+  # (d3 draws ticks half a pixel over, for a crisp line). At this scale eight
+  # hours is about 17 pixels.
+  ticks <- js(s, "(() => {
+    const points = [...document.querySelectorAll('#days circle')];
+    return [...document.querySelectorAll('#days .axis-x .tick')].map(t => {
+      const p = points.find(c => +c.__data__.date === +t.__data__);
+      return { midnight: t.__data__.getUTCHours() === 0,
+               gap: p ? Math.abs(+t.getAttribute('transform').match(/translate\\(([-\\d.e]+)/)[1] - +p.getAttribute('cx')) : null };
+    }); })()")
+  expect_gt(length(ticks), 3)
+  for (t in ticks) {
+    expect_true(t$midnight)
+    expect_lt(t$gap, 1)
+  }
+
+  # Tooltips read as R prints the values: not a day early, not in the
+  # browser's time zone.
+  tooltip <- function(id, i) {
+    js(s, sprintf("document.querySelectorAll('#%s circle')[%d].dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); true", id, i - 1))
+    wait_until(s, "[...document.querySelectorAll('.glyph-tooltip')].some(t => t.style.opacity === '1')")
+    text <- js(s, "[...document.querySelectorAll('.glyph-tooltip')].find(t => t.style.opacity === '1').textContent")
+    js(s, sprintf("document.querySelectorAll('#%s circle')[%d].dispatchEvent(new MouseEvent('mouseout', { bubbles: true })); true", id, i - 1))
+    wait_until(s, "![...document.querySelectorAll('.glyph-tooltip')].some(t => t.style.opacity === '1')")
+    text
+  }
+  expect_match(tooltip("point", 1), "date: 1967-07-01")
+  expect_match(tooltip("time", 4), "t: 2024-03-10 04:00")
+  expect_length(page_errors(s), 0)
+})

@@ -27,8 +27,14 @@ typed_frame <- function(n) {
 test_that("rows rebuilt from columns match the old row records exactly", {
   for (n in c(0, 1, 2, 7, 40)) {
     df <- typed_frame(n)
-    rebuilt <- rows_from_json(parsed(df_to_columns(df)))
-    expect_identical(rebuilt, old_rows(df), info = paste("rows:", n))
+    payload <- parsed(df_to_columns(df))
+    # Dates and date-times go as numbers, named in `temporal` (#39); the
+    # renderer turns them into dates. Every other value is unchanged.
+    expected <- df
+    expected$date <- temporal_ms(df$date)
+    expected$time <- temporal_ms(df$time)
+    expect_identical(rows_from_json(payload), old_rows(expected), info = paste("rows:", n))
+    expect_identical(unlist(payload$temporal), c("date", "time"))
   }
   # A single column, and a single row of a single column.
   one <- data.frame(v = c(1.5, 2.5, NA))

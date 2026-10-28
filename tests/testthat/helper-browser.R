@@ -61,10 +61,12 @@ file_url <- function(file) {
 # Opens a page (a file, or the URL of a running Shiny app) in a new headless
 # Chrome tab of the given size, waits until every widget on it has drawn, and
 # closes the tab when the calling test ends. Script errors are collected in
-# `window.__errors`.
-open_page <- function(file, width = 800, height = 600, env = parent.frame()) {
+# `window.__errors`. `timezone` sets the browser's time zone.
+open_page <- function(file, width = 800, height = 600, env = parent.frame(), timezone = NULL) {
   s <- chromote::ChromoteSession$new(width = width, height = height)
   withr::defer(s$close(), envir = env)
+  # The browser's time zone, such as "America/Los_Angeles".
+  if (!is.null(timezone)) s$Emulation$setTimezoneOverride(timezoneId = timezone)
   s$Page$addScriptToEvaluateOnNewDocument(
     "window.__errors = []; addEventListener('error', e => window.__errors.push(e.message));"
   )

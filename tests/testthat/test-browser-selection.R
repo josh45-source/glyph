@@ -191,3 +191,18 @@ test_that("a facet grid reports one vector and a layout one entry per panel", {
   expect_true(js(s, "[...document.querySelectorAll('#linked .glyph-plot')][1].querySelectorAll('circle[opacity=\"0.15\"]').length > 0"))
   expect_length(page_errors(s), 0)
 })
+
+test_that("a brush on a date axis reports the rows of those dates (#39)", {
+  skip_if_no_browser()
+  econ <- data.frame(
+    date = seq(as.Date("1967-07-01"), by = "month", length.out = 24),
+    unemploy = seq(2900, by = 50, length.out = 24)
+  )
+  s <- open_page(save_widgets(list(
+    dates = render(glyph(econ, x = date, y = unemploy) |> mark_point() |> interact(brush = TRUE))
+  )), timezone = "America/Los_Angeles")
+  watch_selections(s)
+  brush_around(s, "dates", ".marks-point circle", "d.date < new Date(Date.UTC(1968, 6, 1))")
+  expect_identical(current(s, "dates"), which(econ$date < as.Date("1968-07-01")))
+  expect_length(page_errors(s), 0)
+})
