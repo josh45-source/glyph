@@ -1,5 +1,7 @@
 # Changelog
 
+## glyph (development version)
+
 ## glyph 0.2.0
 
 CRAN release: 2026-10-21
