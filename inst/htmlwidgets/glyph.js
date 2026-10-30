@@ -932,7 +932,7 @@ function drawMark(g, mark, data, scales, w, h, theme, spec, markRegistry) {
       drawLine(g, data, enc, scales, style, w, h, interact, theme);
       break;
     case "area":
-      drawArea(g, data, enc, scales, style, h, interact, theme);
+      drawArea(g, data, enc, scales, style, w, h, interact, theme);
       break;
     case "rule":
       drawRule(g, enc, scales, style, w, h, theme);
@@ -1134,23 +1134,23 @@ function drawLine(g, data, enc, scales, style, w, h, interact, theme) {
     ? d3.groups(data, d => d[enc.color.field])
     : [[null, data]];
 
+  const colour = key => key && scales.color ? scales.color(key) : (theme.accent || "#4269d0");
   for (const [key, values] of groups) {
     g.append("path")
       .datum(values)
       .attr("class", "marks-line")
       .attr("d", line)
       .attr("fill", "none")
-      .attr("stroke", key && scales.color ? scales.color(key) : (theme.accent || "#4269d0"))
+      .attr("stroke", colour(key))
       .attr("stroke-width", style.stroke_width || 2);
   }
 
-  // Add nearest-point interaction dot
   if (interact.nearest?.enabled || interact.tooltip?.enabled) {
-    addNearestInteraction(g, data, enc, scales, interact, theme, w, h);
+    addLineHover(g, groups.map(([key, values]) => [values, colour(key)]), enc, scales, interact, theme, w, h);
   }
 }
 
-function drawArea(g, data, enc, scales, style, h, interact, theme) {
+function drawArea(g, data, enc, scales, style, w, h, interact, theme) {
   // Filled down to zero, or to the edge of the plot when a domain set with
   // set_scale() leaves zero outside it.
   const area = d3.area()
@@ -1166,6 +1166,10 @@ function drawArea(g, data, enc, scales, style, h, interact, theme) {
     .attr("d", area)
     .attr("fill", theme.accent || "#4269d0")
     .attr("opacity", style.opacity || 0.6);
+
+  if (interact.nearest?.enabled || interact.tooltip?.enabled) {
+    addLineHover(g, [[data, theme.accent || "#4269d0"]], enc, scales, interact, theme, w, h);
+  }
 }
 
 function drawRule(g, enc, scales, style, w, h, theme) {
@@ -2125,8 +2129,33 @@ function placeTooltip(tip, html, clientX, clientY) {
 // `autoText`, when given, writes the text of an automatic (`tooltip = TRUE`)
 // tooltip; statistical marks use it to show their summary statistics.
 function addTooltip(selection, data, enc, tooltipConfig, theme, autoText) {
-  const tooltip = widgetTooltip(selection);
+  const tip = markTooltip(selection, enc, tooltipConfig, theme, autoText);
   selection.each(function() { this.__glyphTooltip = true; });
+
+  selection
+    .on("mouseover", function(event, d) { tip.show(event.clientX, event.clientY, d); })
+    .on("mousemove", function(event, d) { tip.show(event.clientX, event.clientY, d); })
+    .on("mouseout", tip.hide)
+    // Touch devices have no hover state, so show the tooltip on tap and
+    // dismiss it on the next tap elsewhere (see widgetTooltip) instead.
+    // Namespaced so this doesn't clobber a bare "click" handler from
+    // addClickSelect() when both tooltip and click interactions are enabled
+    // on the same mark. touchend's preventDefault suppresses the browser's follow-up
+    // synthetic "click" so the tap isn't handled twice.
+    .on("click.tooltip touchend.tooltip", function(event, d) {
+      event.stopPropagation();
+      if (event.type === "touchend") event.preventDefault();
+      const point = event.changedTouches ? event.changedTouches[0] : event;
+      tip.show(point.clientX, point.clientY, d);
+    });
+}
+
+// The widget's tooltip, set up for one mark's rows: `show(clientX, clientY, d)`
+// writes row `d` as the mark's tooltip text and places it by the pointer, and
+// `hide()` hides it. addTooltip() and line and area hover (addLineHover())
+// both use it, so every mark's tooltip reads and looks the same.
+function markTooltip(selection, enc, tooltipConfig, theme, autoText) {
+  const tooltip = widgetTooltip(selection);
   // Marks in one widget can have different themes (compose(), inset()), so
   // each sets its own colours when it shows the tooltip.
   const dark = theme.fg === "#e0e0e0";
@@ -2153,7 +2182,7 @@ function addTooltip(selection, data, enc, tooltipConfig, theme, autoText) {
     return text.trim().replace(/\n/g, "<br>");
   }
 
-  function showAt(clientX, clientY, d) {
+  function show(clientX, clientY, d) {
     placeTooltip(tooltip.call(colours), renderText(d), clientX, clientY);
   }
 
@@ -2161,22 +2190,7 @@ function addTooltip(selection, data, enc, tooltipConfig, theme, autoText) {
     tooltip.style("opacity", 0);
   }
 
-  selection
-    .on("mouseover", function(event, d) { showAt(event.clientX, event.clientY, d); })
-    .on("mousemove", function(event, d) { showAt(event.clientX, event.clientY, d); })
-    .on("mouseout", hide)
-    // Touch devices have no hover state, so show the tooltip on tap and
-    // dismiss it on the next tap elsewhere (see widgetTooltip) instead.
-    // Namespaced so this doesn't clobber a bare "click" handler from
-    // addClickSelect() when both tooltip and click interactions are enabled
-    // on the same mark. touchend's preventDefault suppresses the browser's follow-up
-    // synthetic "click" so the tap isn't handled twice.
-    .on("click.tooltip touchend.tooltip", function(event, d) {
-      event.stopPropagation();
-      if (event.type === "touchend") event.preventDefault();
-      const point = event.changedTouches ? event.changedTouches[0] : event;
-      showAt(point.clientX, point.clientY, d);
-    });
+  return { show, hide };
 }
 
 // ---- Hover effects ----------------------------------------------------------
@@ -2305,6 +2319,14 @@ function addBrush(g, entries, w, h, dragState, emitSelection, report) {
     report(null);
   }
 
+  // Lines and areas take hover from an overlay of their own (addLineHover()),
+  // which this brush's overlay covers. When no element is near the pointer,
+  // it goes to the topmost of them.
+  function lineHover() {
+    const overlays = g.selectAll(".glyph-line-hover").nodes();
+    return overlays[overlays.length - 1] || null;
+  }
+
   // Forwards a tap/click that landed on the brush overlay to the element
   // underneath it, so tooltips and click-select still respond. Called from
   // two places: the brush's own "end" (a no-drag tap in brush mode) and a
@@ -2314,6 +2336,15 @@ function addBrush(g, entries, w, h, dragState, emitSelection, report) {
     const nearest = nearestElement(mx, my);
     if (!nearest) return false;
     nearest.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    return true;
+  }
+
+  // The same for a line or area's tooltip, when the tap is near no element.
+  function forwardTapToLine(event) {
+    const line = lineHover();
+    if (!line || !line.__glyphTooltip) return false;
+    const point = (event.changedTouches && event.changedTouches[0]) || event;
+    line.dispatchEvent(new MouseEvent("click", { bubbles: false, cancelable: true, clientX: point.clientX, clientY: point.clientY }));
     return true;
   }
 
@@ -2343,14 +2374,16 @@ function addBrush(g, entries, w, h, dragState, emitSelection, report) {
         // work with brushing enabled.
         if (event.sourceEvent) {
           const [mx, my] = pointerXY(event.sourceEvent, g.node());
-          if (nearestElement(mx, my)) {
+          const nearest = nearestElement(mx, my);
+          if (nearest || (lineHover() && lineHover().__glyphTooltip)) {
             // Without this, the browser's own touch-to-click synthesis
             // still fires shortly after, targeting the overlay (since it's
             // still what's topmost at that screen position); that bubbles
             // to document and immediately dismisses the tooltip we just
             // forwarded a click to via the "tap outside" listeners above.
             if (event.sourceEvent.cancelable) event.sourceEvent.preventDefault();
-            forwardTapToPoint(event.sourceEvent, this);
+            if (nearest) forwardTapToPoint(event.sourceEvent, this);
+            else forwardTapToLine(event.sourceEvent);
           }
         }
         return;
@@ -2431,14 +2464,14 @@ function addBrush(g, entries, w, h, dragState, emitSelection, report) {
       // Only a tap, not the end of a pan drag.
       if (!t || !start || Math.hypot(t.clientX - start[0], t.clientY - start[1]) > 10) return;
 
-      if (forwardTapToPoint(event, this)) {
+      if (forwardTapToPoint(event, this) || forwardTapToLine(event)) {
         if (event.cancelable) event.preventDefault();
         event.stopPropagation();
       }
     })
     .on("click.glyph-tap-forward", function(event) {
       if (dragModeOf(dragState, "brush") !== "pan") return;
-      if (forwardTapToPoint(event, this)) event.stopPropagation();
+      if (forwardTapToPoint(event, this) || forwardTapToLine(event)) event.stopPropagation();
     });
 
   // Mode-dependent cursor, so which thing a drag will do is visible before
@@ -2476,7 +2509,8 @@ function addBrush(g, entries, w, h, dragState, emitSelection, report) {
   // pointer.
   const hover = perFrame(({ clientX, clientY }) => {
     const [mx, my] = d3.pointer({ clientX, clientY }, g.node());
-    const nearest = nearestElement(mx, my);
+    // An element near the pointer first, else a line or area.
+    const nearest = nearestElement(mx, my) || lineHover();
     if (nearest !== hoveredNode) {
       if (hoveredNode) hoveredNode.dispatchEvent(new MouseEvent("mouseout", { bubbles: true }));
       hoveredNode = nearest;
@@ -2772,45 +2806,90 @@ function addZoomControls(svgNode, zoom, svgSel, dragState, resetZoom) {
 
 // ---- Nearest point (for line charts) ----------------------------------------
 
-function addNearestInteraction(g, data, enc, scales, interact, theme, w, h) {
-  if (!enc.x?.field || !enc.y?.field) return;
+// Hover for lines and areas, which draw many rows as one element. An overlay
+// finds the row under the pointer: on the nearest line (one per colour), the
+// point nearest in x. A dot marks it, and with tooltips on, the widget's
+// tooltip shows it as for any other mark (markTooltip()). `lines` is a list
+// of [rows, colour]; rows needn't be sorted, as a sorted copy is searched.
+// With a brush, whose overlay covers this one, the brush passes the pointer
+// on (see addBrush()).
+function addLineHover(g, lines, enc, scales, interact, theme, w, h) {
+  if (!enc.x?.field || !enc.y?.field || !scales.x || !scales.y) return;
+
+  const px = d => scales.x(getVal(d, enc.x));
+  const py = d => scales.y(getVal(d, enc.y));
+  const sorted = lines
+    .map(([rows, colour]) => rows
+      .map(d => ({ d, x: px(d), y: py(d), colour }))
+      .filter(p => isFinite(p.x) && isFinite(p.y))
+      .sort((a, b) => a.x - b.x))
+    .filter(points => points.length > 0);
+  if (sorted.length === 0) return;
+  const bisectX = d3.bisector(p => p.x).left;
+
+  // The line nearest the pointer is the one passing closest to it at the
+  // pointer's x (or whose nearer end is closest, beyond its ends).
+  function nearest(mx, my) {
+    let best = null;
+    for (const points of sorted) {
+      const i = bisectX(points, mx);
+      const a = points[Math.max(0, i - 1)];
+      const b = points[Math.min(points.length - 1, i)];
+      const t = b.x > a.x ? Math.min(1, Math.max(0, (mx - a.x) / (b.x - a.x))) : 0;
+      const dist = Math.hypot(mx - (a.x + t * (b.x - a.x)), my - (a.y + t * (b.y - a.y)));
+      if (!best || dist < best.dist) best = { dist, point: mx - a.x <= b.x - mx ? a : b };
+    }
+    return best.point;
+  }
 
   const dot = g.append("circle")
+    .attr("class", "glyph-line-dot")
     .attr("r", 5)
-    .attr("fill", theme.accent || "#4269d0")
     .attr("stroke", "#fff")
     .attr("stroke-width", 2)
+    .style("pointer-events", "none")
     .style("opacity", 0);
 
-  const bisect = d3.bisector(d => getVal(d, enc.x)).center;
-
   const overlay = g.append("rect")
-    .attr("class", "overlay")
+    .attr("class", "glyph-line-hover")
     .attr("width", w)
     .attr("height", h)
     .attr("fill", "none")
     .attr("pointer-events", "all");
 
+  const tip = interact.tooltip?.enabled ? markTooltip(overlay, enc, interact.tooltip, theme) : null;
+  // A tap on the overlay shows a tooltip, so isn't a tap elsewhere.
+  if (tip) overlay.node().__glyphTooltip = true;
+
+  // `event` has clientX/Y: a mouse event or a Touch.
+  function show(event) {
+    const [mx, my] = d3.pointer(event, overlay.node());
+    const p = nearest(mx, my);
+    dot.attr("cx", p.x).attr("cy", p.y).attr("fill", p.colour).style("opacity", 1);
+    if (tip) tip.show(event.clientX, event.clientY, p.d);
+  }
+  function hide() {
+    dot.style("opacity", 0);
+    if (tip) tip.hide();
+  }
+
   // At most one update per frame, for the latest pointer position.
-  const move = perFrame(({ clientX, clientY }) => {
-    const [mx] = d3.pointer({ clientX, clientY }, overlay.node());
-    const x0 = scales.x.invert(mx);
-    const i = bisect(data, x0);
-    const d = data[i];
-    if (!d) return;
-
-    dot.attr("cx", scales.x(getVal(d, enc.x)))
-      .attr("cy", scales.y(getVal(d, enc.y)))
-      .style("opacity", 1);
-  });
-
+  const move = perFrame(show);
   overlay
     .on("mousemove", function(event) {
       move.schedule({ clientX: event.clientX, clientY: event.clientY });
     })
     .on("mouseout", function() {
       move.cancel();
-      dot.style("opacity", 0);
+      hide();
+    })
+    // Touch: show on tap, dismissed by the next tap elsewhere (see
+    // widgetTooltip()), as for other marks.
+    .on("click.tooltip touchend.tooltip", function(event) {
+      if (!tip) return;
+      event.stopPropagation();
+      if (event.type === "touchend") event.preventDefault();
+      show(event.changedTouches ? event.changedTouches[0] : event);
     });
 }
 

@@ -19,7 +19,9 @@ interact(
 \item{spec}{A glyph_spec}
 
 \item{tooltip}{Show values on hover. TRUE for auto-generated, or a
-glue-style template string like "\{x\}: \{y\} (\{color\})".}
+glue-style template string like "\{x\}: \{y\} (\{color\})".
+On a line or area it shows the values of the data point nearest the
+pointer, on the nearest line when there are several.}
 
 \item{zoom}{Enable scroll-to-zoom and pan. The scroll wheel, a trackpad
 pinch, a two-finger pinch and a double-click/double-tap always zoom;

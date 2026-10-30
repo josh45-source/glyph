@@ -17,6 +17,8 @@ NULL
 #' @param spec A glyph_spec
 #' @param tooltip Show values on hover. TRUE for auto-generated, or a
 #'   glue-style template string like "\{x\}: \{y\} (\{color\})".
+#'   On a line or area it shows the values of the data point nearest the
+#'   pointer, on the nearest line when there are several.
 #' @param zoom Enable scroll-to-zoom and pan. The scroll wheel, a trackpad
 #'   pinch, a two-finger pinch and a double-click/double-tap always zoom;
 #'   dragging pans (see `brush` for what happens when both are enabled).

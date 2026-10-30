@@ -340,6 +340,70 @@ test_that("dates and date-times are spread along their axis, in any time zone (#
   expect_length(page_errors(s), 0)
 })
 
+test_that("lines and areas show the tooltip of the point under the pointer (#42)", {
+  skip_if_no_browser()
+  econ <- data.frame(date = seq(as.Date("1967-07-01"), by = "month", length.out = 12),
+                     unemploy = c(2944, 2945, 2958, 3143, 3066, 3018, 2878, 3001, 2877, 2709, 2740, 2938))
+  # Rows out of order along x.
+  unsorted <- data.frame(x = c(5, 1, 4, 2, 3), y = c(50, 10, 40, 20, 30))
+  # Two lines that cross, with the same x values.
+  two <- data.frame(x = rep(1:10, 2), y = c(1:10, 10:1), g = rep(c("a", "b"), each = 10))
+  s <- open_page(save_widgets(list(
+    auto = render(glyph(econ, x = date, y = unemploy) |> mark_line() |> interact(tooltip = TRUE)),
+    template = render(glyph(econ, x = date, y = unemploy) |> mark_line() |> interact(tooltip = "{date}: {unemploy}")),
+    unsorted = render(glyph(unsorted, x = x, y = y) |> mark_line() |> interact(tooltip = TRUE)),
+    two = render(glyph(two, x = x, y = y) |> mark_line(color = g) |> interact(tooltip = TRUE)),
+    area = render(glyph(unsorted, x = x, y = y) |> mark_area() |> interact(tooltip = TRUE)),
+    brushed = render(glyph(econ, x = date, y = unemploy) |> mark_line() |> mark_point(data = econ[1:2, ]) |>
+                       interact(tooltip = TRUE, brush = TRUE))
+  )), height = 2600)
+
+  # The page position of the drawn vertex for row `i` of the `k`th line or
+  # area in div `id`, moved by (dx, dy). Each path segment ends at a vertex.
+  vertex <- function(id, i, k = 1, dx = 0, dy = 0) {
+    unlist(js(s, sprintf(
+      "(() => { const p = document.querySelectorAll('#%s .marks-line, #%s .marks-area')[%d];
+                const v = p.getAttribute('d').split(/[A-Za-z]/).filter(x => x).map(seg => seg.split(',').slice(-2).map(Number))[%d];
+                const m = p.getScreenCTM();
+                return [m.a * v[0] + m.c * v[1] + m.e + %f, m.b * v[0] + m.d * v[1] + m.f + %f]; })()",
+      id, id, k - 1, i - 1, dx, dy)))
+  }
+  visible <- "[...document.querySelectorAll('.glyph-tooltip')].find(t => t.style.opacity === '1')"
+  hover <- function(xy) {
+    mouse(s, "mouseMoved", xy[1], xy[2])
+    wait_until(s, sprintf("!!%s", visible))
+    text <- js(s, sprintf("%s.textContent", visible))
+    mouse(s, "mouseMoved", 795, 2595)
+    wait_until(s, sprintf("!%s", visible))
+    text
+  }
+
+  # Near a point, not on it.
+  expect_match(hover(vertex("auto", 4, dx = 4)), "date: 1967-10-01unemploy: 3143", fixed = TRUE)
+  expect_match(hover(vertex("template", 9, dx = -4)), "^1968-03-01: 2877$")
+  # Row 3 is x = 4, between rows 5 and 4 along the line.
+  expect_match(hover(vertex("unsorted", 3, dx = 3)), "x: 4y: 40", fixed = TRUE)
+  # At x = 3 line a is at 3 and line b at 8: the pointer is just below b's
+  # point, so b's point, not the first row at x = 3.
+  expect_match(hover(vertex("two", 3, k = 2, dy = 5)), "x: 3y: 8g: b", fixed = TRUE)
+  expect_match(hover(vertex("two", 3, k = 1, dy = -5)), "x: 3y: 3g: a", fixed = TRUE)
+  expect_match(hover(vertex("area", 1, dx = -3)), "x: 5y: 50", fixed = TRUE)
+  # A brush covers the line; away from the points, the line still answers.
+  expect_match(hover(vertex("brushed", 7, dy = 6)), "date: 1968-01-01unemploy: 2878", fixed = TRUE)
+  # The dot sits on the point, in the line's colour.
+  mouse(s, "mouseMoved", vertex("two", 6, k = 2)[1], vertex("two", 6, k = 2)[2])
+  wait_until(s, sprintf("!!%s", visible))
+  dot <- js(s, "(() => { const d = document.querySelectorAll('#two .glyph-line-dot')[0], b = d.getBoundingClientRect();
+                         return [b.left + b.width / 2, b.top + b.height / 2, d.getAttribute('fill'),
+                                 document.querySelectorAll('#two .marks-line')[1].getAttribute('stroke')]; })()")
+  expect_equal(unlist(dot[1:2]), vertex("two", 6, k = 2), tolerance = 1)
+  expect_identical(dot[[3]], dot[[4]])
+
+  # One tooltip per widget, as for other marks.
+  expect_equal(js(s, "document.querySelectorAll('.glyph-tooltip').length"), 6)
+  expect_length(page_errors(s), 0)
+})
+
 test_that("tooltips show above dashboard cards, next to the pointer (#43)", {
   skip_if_no_browser()
   # Laid out as a Quarto dashboard: a body that doesn't scroll, and a card
