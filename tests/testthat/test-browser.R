@@ -403,3 +403,72 @@ test_that("lines and areas show the tooltip of the point under the pointer (#42)
   expect_equal(js(s, "document.querySelectorAll('.glyph-tooltip').length"), 6)
   expect_length(page_errors(s), 0)
 })
+
+test_that("tooltips show above dashboard cards, next to the pointer (#43)", {
+  skip_if_no_browser()
+  # Laid out as a Quarto dashboard: a body that doesn't scroll, and a card
+  # whose body is its own layer (z-index 4), with overflow. The tooltip used
+  # to be drawn under it.
+  dir <- withr::local_tempdir()
+  file <- file.path(dir, "page.html")
+  # A tooltip big enough to reach the window's edge from the last point.
+  df <- data.frame(x = 1:20, y = c(20:2, 0), note = "a note long enough to make the tooltip wide")
+  widget <- render(glyph(df, x = x, y = y) |> mark_point() |>
+                     interact(tooltip = "x: {x}\ny: {y}\n{note}\n{note}\n{note}\n{note}"))
+  htmltools::save_html(htmltools::tagList(
+    htmltools::tags$style(
+      "html, body { margin: 0; height: 100%; overflow: hidden; }
+       body { display: flex; }
+       .card { flex: 1; display: flex; position: relative; overflow: auto; margin: 16px; }
+       .card-body { flex: 1; display: flex; z-index: 4; overflow: hidden; }
+       .card-body > * { flex: 1; }
+       .card.full-screen { position: fixed; inset: 40px 16px 16px; z-index: 1070; }"),
+    htmltools::div(class = "card", htmltools::div(class = "card-body", widget))
+  ), file, libdir = "lib")
+  s <- open_page(file, width = 700, height = 450)
+
+  # Hovers the point with the given x, and returns where the tooltip is
+  # relative to the pointer, whether it is in the window, and whether it is
+  # what is drawn at its centre.
+  hover <- function(x) {
+    xy <- unlist(js(s, sprintf(
+      "(() => { const b = [...document.querySelectorAll('.marks-point circle')].find(e => e.__data__.x === %d)
+                  .getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; })()", x)))
+    mouse(s, "mouseMoved", xy[1], xy[2])
+    wait_until(s, "[...document.querySelectorAll('.glyph-tooltip')].some(t => t.style.opacity === '1')")
+    r <- js(s, "(() => { const t = [...document.querySelectorAll('.glyph-tooltip')].find(t => t.style.opacity === '1');
+                         t.style.pointerEvents = 'auto';
+                         const b = t.getBoundingClientRect();
+                         const onTop = t.contains(document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2));
+                         t.style.pointerEvents = 'none';
+                         return { box: [b.left, b.top, b.right, b.bottom], onTop, text: t.textContent,
+                                  window: [document.documentElement.clientWidth, document.documentElement.clientHeight] }; })()")
+    mouse(s, "mouseMoved", 1, 1)
+    wait_until(s, "![...document.querySelectorAll('.glyph-tooltip')].some(t => t.style.opacity === '1')")
+    box <- unlist(r$box)
+    list(text = r$text, on_top = r$onTop, from_pointer = box[1:2] - xy, right_of_pointer = box[1] > xy[1],
+         in_window = all(box >= 0) && box[3] <= r$window[[1]] && box[4] <= r$window[[2]])
+  }
+
+  # Mid-plot: on top, 12px right of and above the pointer, as in a page.
+  mid <- hover(10)
+  expect_match(mid$text, "x: 10y: 11", fixed = TRUE)
+  expect_true(mid$on_top)
+  expect_equal(mid$from_pointer, c(12, -12), tolerance = 1.5)
+  # In the bottom right corner it moves left of and above the pointer
+  # rather than leave the window.
+  corner <- hover(20)
+  expect_true(corner$on_top)
+  expect_true(corner$in_window)
+  expect_false(corner$right_of_pointer)
+  expect_lt(corner$from_pointer[2], -12)
+
+  # A card in full-screen mode, as bslib does it (z-index 1070).
+  js(s, "document.querySelector('.card').classList.add('full-screen')")
+  wait_until(s, "Math.abs(document.querySelector('.html-widget svg').getBoundingClientRect().top - 40) < 30")
+  Sys.sleep(0.5)
+  full <- hover(10)
+  expect_true(full$on_top)
+  expect_equal(full$from_pointer, c(12, -12), tolerance = 1.5)
+  expect_length(page_errors(s), 0)
+})

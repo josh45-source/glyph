@@ -22,6 +22,13 @@
   along x. `mark_area()` gets the same dot and tooltip. Both work under a
   brush, with zoom, in facets and layouts, and in Shiny.
 
+* Tooltips show in Quarto dashboards (`format: dashboard`) (#43). They were
+  drawn under the dashboard's cards. The tooltip is now fixed to the
+  window and drawn above everything, so it also shows over a bslib card in
+  full-screen mode. Near the edge of the window it moves to the other side
+  of the pointer instead of going off screen, and it hides when the page
+  scrolls.
+
 # glyph 0.2.0
 
 ## Breaking changes
