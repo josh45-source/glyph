@@ -2029,11 +2029,11 @@ function dragModeOf(dragState, fallback) {
 let glyphListenerCounter = 0;
 const glyphDocumentListeners = [];
 
-// Adds a click/touchend listener on document on behalf of `node`, part of a
-// plot. A redraw replaces the plot without telling anything, so first drop
-// the listeners whose element has left the page; otherwise each redraw adds
-// another listener that keeps the replaced plot in memory.
-function onDocumentTap(node, listener) {
+// Adds a listener on document for the event `types` on behalf of `node`,
+// part of a plot. A redraw replaces the plot without telling anything, so
+// first drop the listeners whose element has left the page; otherwise each
+// redraw adds another listener that keeps the replaced plot in memory.
+function onDocument(node, types, listener, options) {
   for (let i = glyphDocumentListeners.length - 1; i >= 0; i--) {
     const l = glyphDocumentListeners[i];
     if (!l.node.isConnected) {
@@ -2042,9 +2042,13 @@ function onDocumentTap(node, listener) {
     }
   }
   const ns = "glyph-" + (glyphListenerCounter++);
-  const typenames = `click.${ns} touchend.${ns}`;
-  d3.select(document).on(typenames, listener);
+  const typenames = types.split(" ").map(t => `${t}.${ns}`).join(" ");
+  d3.select(document).on(typenames, listener, options);
   glyphDocumentListeners.push({ node, typenames });
+}
+
+function onDocumentTap(node, listener) {
+  onDocument(node, "click touchend", listener);
 }
 
 // The widget's tooltip: one per widget, shared by its marks and kept across
@@ -2059,9 +2063,17 @@ function widgetTooltip(selection) {
   // A redraw removes the element the tooltip was showing for, so hide it.
   if (tip && tip.node().isConnected) return tip.style("opacity", 0);
 
+  // Fixed to the window, above everything, from <body>. Inside a card it
+  // would be clipped by the card's overflow, and from <body> with a lower
+  // z-index it is drawn under any card that is its own layer: a Quarto
+  // dashboard's card bodies (z-index 4, #43) and a bslib card in full-screen
+  // mode (1070).
   tip = host.__glyphTooltip = d3.select("body").append("div")
     .attr("class", "glyph-tooltip")
-    .style("position", "absolute")
+    .style("position", "fixed")
+    .style("left", "0px")
+    .style("top", "0px")
+    .style("z-index", 2147483647)
     .style("padding", "6px 10px")
     .style("border-radius", "4px")
     .style("font-size", "11px")
@@ -2079,7 +2091,35 @@ function widgetTooltip(selection) {
     if (event.target && event.target.__glyphTooltip) return;
     tip.style("opacity", 0);
   });
+  // It stays put while the page or a card scrolls, so it would no longer be
+  // next to its mark.
+  onDocument(tip.node(), "scroll", () => tip.style("opacity", 0), { capture: true, passive: true });
   return tip;
+}
+
+// Shows `tip` with `html` next to the pointer at (clientX, clientY): to its
+// right and a little above, or to its left or above it where that would
+// leave the window.
+function placeTooltip(tip, html, clientX, clientY) {
+  const node = tip.node();
+  // An element shown with the browser's Fullscreen API is the only thing
+  // drawn, so the tooltip has to be inside it.
+  const layer = document.fullscreenElement || document.body;
+  if (node.parentNode !== layer) layer.appendChild(node);
+  if (node.__html !== html) {
+    tip.html(html);
+    node.__html = html;
+  }
+  const gap = 12, margin = 4;
+  const w = node.offsetWidth, h = node.offsetHeight;
+  const W = document.documentElement.clientWidth, H = document.documentElement.clientHeight;
+  let x = clientX + gap, y = clientY - gap;
+  if (x + w > W - margin) x = clientX - gap - w;
+  if (y + h > H - margin) y = clientY - gap - h;
+  x = Math.max(margin, Math.min(x, W - margin - w));
+  y = Math.max(margin, Math.min(y, H - margin - h));
+  tip.style("opacity", 1)
+    .style("transform", `translate(${Math.round(x)}px, ${Math.round(y)}px)`);
 }
 
 // `autoText`, when given, writes the text of an automatic (`tooltip = TRUE`)
@@ -2113,12 +2153,8 @@ function addTooltip(selection, data, enc, tooltipConfig, theme, autoText) {
     return text.trim().replace(/\n/g, "<br>");
   }
 
-  function showAt(pageX, pageY, d) {
-    tooltip.html(renderText(d))
-      .call(colours)
-      .style("opacity", 1)
-      .style("left", (pageX + 12) + "px")
-      .style("top", (pageY - 12) + "px");
+  function showAt(clientX, clientY, d) {
+    placeTooltip(tooltip.call(colours), renderText(d), clientX, clientY);
   }
 
   function hide() {
@@ -2126,8 +2162,8 @@ function addTooltip(selection, data, enc, tooltipConfig, theme, autoText) {
   }
 
   selection
-    .on("mouseover", function(event, d) { showAt(event.pageX, event.pageY, d); })
-    .on("mousemove", function(event, d) { showAt(event.pageX, event.pageY, d); })
+    .on("mouseover", function(event, d) { showAt(event.clientX, event.clientY, d); })
+    .on("mousemove", function(event, d) { showAt(event.clientX, event.clientY, d); })
     .on("mouseout", hide)
     // Touch devices have no hover state, so show the tooltip on tap and
     // dismiss it on the next tap elsewhere (see widgetTooltip) instead.
@@ -2139,7 +2175,7 @@ function addTooltip(selection, data, enc, tooltipConfig, theme, autoText) {
       event.stopPropagation();
       if (event.type === "touchend") event.preventDefault();
       const point = event.changedTouches ? event.changedTouches[0] : event;
-      showAt(point.pageX, point.pageY, d);
+      showAt(point.clientX, point.clientY, d);
     });
 }
 

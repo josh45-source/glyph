@@ -13,6 +13,13 @@
   1970-01-01 read in UTC (a date-time as its clock time in its own time
   zone), and are named in the data's `temporal` field.
 
+* Tooltips show in Quarto dashboards (`format: dashboard`) (#43). They were
+  drawn under the dashboard's cards. The tooltip is now fixed to the
+  window and drawn above everything, so it also shows over a bslib card in
+  full-screen mode. Near the edge of the window it moves to the other side
+  of the pointer instead of going off screen, and it hides when the page
+  scrolls.
+
 # glyph 0.2.0
 
 ## Breaking changes
