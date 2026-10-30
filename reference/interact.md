@@ -26,7 +26,9 @@ interact(
 - tooltip:
 
   Show values on hover. TRUE for auto-generated, or a glue-style
-  template string like "{x}: {y} ({color})".
+  template string like "{x}: {y} ({color})". On a line or area it shows
+  the values of the data point nearest the pointer, on the nearest line
+  when there are several.
 
 - zoom:
 

@@ -18,6 +18,20 @@
   time in its own time zone), and are named in the data’s `temporal`
   field.
 
+- [`mark_line()`](https://josh45-source.github.io/glyph/reference/mark_line.md)
+  shows its tooltip
+  ([\#42](https://github.com/josh45-source/glyph/issues/42)). With
+  `interact(tooltip = ...)`, a dot moved to the point nearest the
+  pointer but no tooltip appeared. The tooltip now shows that point’s
+  values, with the same text and look as points and bars:
+  `tooltip = TRUE` lists the fields, and a template such as
+  `"{date}: {unemploy}"` works too. With several lines (`color =`), it
+  picks the nearest point on the nearest line. Rows need not be in order
+  along x.
+  [`mark_area()`](https://josh45-source.github.io/glyph/reference/mark_area.md)
+  gets the same dot and tooltip. Both work under a brush, with zoom, in
+  facets and layouts, and in Shiny.
+
 ## glyph 0.2.0
 
 CRAN release: 2026-10-21
