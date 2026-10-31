@@ -1,5 +1,28 @@
 # glyph (development version)
 
+## New features
+
+* Facet strips work as in ggplot2's `facet_grid()` (#46). With `rows` and
+  `cols`, column labels go in a strip across the top and row labels in a
+  rotated strip down the right side. With `rows` alone, panels stack in one
+  column labelled on the right. With `cols` alone, or `wrap`, each panel has
+  a strip on top. A strip shows the value alone ("4", not "cyl = 4").
+* Faceted plots use more of their space (#46). A shared axis is drawn once,
+  on the outer panels, with its title once for the whole grid; panels sit
+  closer together; and the grid fills the widget instead of overflowing it.
+  In a 600 x 400 grid of `facet(rows = cyl, cols = gear)` each panel's plot
+  area grows from 109 x 25 to 160 x 98 px. Without `wrap`, panels wrap into
+  the number of columns that fits the widget best. Short axes, as on small
+  panels, get fewer ticks so their labels don't overlap.
+* `facet()` has a `labeller` argument, similar to `ggplot2::labeller()`
+  (#46): a named vector such as `c("4" = "Four cylinders")`, a function, or
+  a list of those per faceting variable. Values a labeller doesn't name keep
+  their own label.
+* `theme_tokens()` sets the facet strips' font size, font weight, text
+  colour and background with `strip_size`, `strip_weight`, `strip_fg` and
+  `strip_bg` (#46). Every preset sets them, and unless set they follow
+  `font_size`, `fg` and `bg`.
+
 ## Bug fixes
 
 * Dates and date-times are drawn where they belong (#39). They went to the

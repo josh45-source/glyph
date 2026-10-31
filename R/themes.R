@@ -24,6 +24,14 @@ NULL
 #' @param border Plot border: TRUE/FALSE
 #' @param padding Padding around the plot area in px
 #' @param title_size Title font size multiplier (relative to font_size)
+#' @param strip_size Font size of facet strip labels in px. Follows
+#'   `font_size` (at 0.9 of it) unless set.
+#' @param strip_weight Font weight of facet strip labels: "normal", "bold",
+#'   or a number from 100 to 900.
+#' @param strip_fg Text colour of facet strip labels. Follows `fg` unless
+#'   set.
+#' @param strip_bg Background colour of facet strips, or "transparent".
+#'   Follows `bg` (a shade towards `fg`) unless set.
 #' @return Modified glyph_spec
 #' @export
 #'
@@ -35,6 +43,12 @@ NULL
 #' glyph(mtcars, x = wt, y = mpg) |>
 #'   mark_point() |>
 #'   theme_tokens(font = "IBM Plex Sans", bg = "#fafafa", grid = "y")
+#'
+#' # Facet strips: larger, normal-weight labels on a pale blue strip.
+#' glyph(mtcars, x = wt, y = mpg) |>
+#'   mark_point() |>
+#'   facet(rows = cyl, cols = gear) |>
+#'   theme_tokens(strip_size = 13, strip_weight = "normal", strip_bg = "#e8eef8")
 theme_tokens <- function(spec,
                          preset = NULL,
                          font = NULL,
@@ -45,8 +59,17 @@ theme_tokens <- function(spec,
                          grid = NULL,
                          border = NULL,
                          padding = NULL,
-                         title_size = NULL) {
+                         title_size = NULL,
+                         strip_size = NULL,
+                         strip_weight = NULL,
+                         strip_fg = NULL,
+                         strip_bg = NULL) {
   stopifnot(inherits(spec, "glyph_spec"))
+  if (!is.null(strip_weight) && !(
+    (is.character(strip_weight) && length(strip_weight) == 1 && strip_weight %in% c("normal", "bold")) ||
+    (is.numeric(strip_weight) && length(strip_weight) == 1 && strip_weight >= 100 && strip_weight <= 900))) {
+    cli::cli_abort('{.arg strip_weight} must be "normal", "bold", or a number from 100 to 900.')
+  }
 
   # Start from preset if given
   if (!is.null(preset)) {
@@ -65,7 +88,11 @@ theme_tokens <- function(spec,
     grid       = grid,
     border     = border,
     padding    = padding,
-    title_size = title_size
+    title_size = title_size,
+    strip_size   = strip_size,
+    strip_weight = strip_weight,
+    strip_fg     = strip_fg,
+    strip_bg     = strip_bg
   )
   overrides <- Filter(Negate(is.null), overrides)
 
@@ -75,6 +102,16 @@ theme_tokens <- function(spec,
 
   if (!is.null(bg) && is.null(fg)) {
     spec$theme$fg <- auto_contrast(bg)
+  }
+  # Strips follow the text size and colours unless set themselves.
+  if (!is.null(font_size) && is.null(strip_size)) {
+    spec$theme$strip_size <- round(font_size * 0.9)
+  }
+  if ((!is.null(fg) || !is.null(bg)) && is.null(strip_fg)) {
+    spec$theme$strip_fg <- spec$theme$fg
+  }
+  if (!is.null(bg) && is.null(strip_bg)) {
+    spec$theme$strip_bg <- strip_shade(bg, spec$theme$fg)
   }
 
   spec
@@ -110,6 +147,10 @@ default_theme_tokens <- function() {
     border     = FALSE,
     padding    = 40,
     title_size = 1.4,
+    strip_size   = 11,
+    strip_weight = 600,
+    strip_fg     = "#333333",
+    strip_bg     = "#f0f0f0",
     title      = NULL,
     subtitle   = NULL,
     caption    = NULL
@@ -121,19 +162,32 @@ get_preset <- function(name) {
   presets <- list(
     light = default_theme_tokens(),
     dark = utils::modifyList(default_theme_tokens(), list(
-      bg = "#1a1a2e", fg = "#e0e0e0", grid_color = "#2a2a4a", accent = "#6ec6ff"
+      bg = "#1a1a2e", fg = "#e0e0e0", grid_color = "#2a2a4a", accent = "#6ec6ff",
+      strip_fg = "#e0e0e0", strip_bg = "#2a2a4a"
     )),
     minimal = utils::modifyList(default_theme_tokens(), list(
-      grid = "y", border = FALSE, grid_color = "#f0f0f0"
+      grid = "y", border = FALSE, grid_color = "#f0f0f0",
+      strip_bg = "transparent"
     )),
     publication = utils::modifyList(default_theme_tokens(), list(
-      font = "Palatino, Georgia, serif", border = TRUE, grid = FALSE
+      font = "Palatino, Georgia, serif", border = TRUE, grid = FALSE,
+      strip_weight = "normal", strip_bg = "#e5e5e5"
     )),
     presentation = utils::modifyList(default_theme_tokens(), list(
-      font_size = 18, title_size = 1.6, padding = 60
+      font_size = 18, title_size = 1.6, padding = 60,
+      strip_size = 16
     ))
   )
   presets[[name]]
+}
+
+# A strip background for `bg`: 8% of the way from `bg` to `fg`.
+#' @noRd
+strip_shade <- function(bg, fg) {
+  if (identical(bg, "transparent")) return("transparent")
+  rgb <- grDevices::col2rgb(c(bg, fg))
+  mixed <- rgb[, 1] + (rgb[, 2] - rgb[, 1]) * 0.08
+  grDevices::rgb(mixed[1], mixed[2], mixed[3], maxColorValue = 255)
 }
 
 #' @noRd

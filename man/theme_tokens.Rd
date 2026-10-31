@@ -15,7 +15,11 @@ theme_tokens(
   grid = NULL,
   border = NULL,
   padding = NULL,
-  title_size = NULL
+  title_size = NULL,
+  strip_size = NULL,
+  strip_weight = NULL,
+  strip_fg = NULL,
+  strip_bg = NULL
 )
 }
 \arguments{
@@ -41,6 +45,18 @@ theme_tokens(
 \item{padding}{Padding around the plot area in px}
 
 \item{title_size}{Title font size multiplier (relative to font_size)}
+
+\item{strip_size}{Font size of facet strip labels in px. Follows
+\code{font_size} (at 0.9 of it) unless set.}
+
+\item{strip_weight}{Font weight of facet strip labels: "normal", "bold",
+or a number from 100 to 900.}
+
+\item{strip_fg}{Text colour of facet strip labels. Follows \code{fg} unless
+set.}
+
+\item{strip_bg}{Background colour of facet strips, or "transparent".
+Follows \code{bg} (a shade towards \code{fg}) unless set.}
 }
 \value{
 Modified glyph_spec
@@ -56,4 +72,10 @@ glyph(mtcars, x = wt, y = mpg) |>
 glyph(mtcars, x = wt, y = mpg) |>
   mark_point() |>
   theme_tokens(font = "IBM Plex Sans", bg = "#fafafa", grid = "y")
+
+# Facet strips: larger, normal-weight labels on a pale blue strip.
+glyph(mtcars, x = wt, y = mpg) |>
+  mark_point() |>
+  facet(rows = cyl, cols = gear) |>
+  theme_tokens(strip_size = 13, strip_weight = "normal", strip_bg = "#e8eef8")
 }

@@ -4,7 +4,14 @@
 \alias{facet}
 \title{Facet a plot by one or two variables}
 \usage{
-facet(spec, rows = NULL, cols = NULL, free_scales = "none", wrap = NULL)
+facet(
+  spec,
+  rows = NULL,
+  cols = NULL,
+  free_scales = "none",
+  wrap = NULL,
+  labeller = NULL
+)
 }
 \arguments{
 \item{spec}{A glyph_spec}
@@ -18,6 +25,20 @@ expression, or \code{NULL}}
 \item{free_scales}{"none", "x", "y", "both"}
 
 \item{wrap}{If only one variable, wrap into a grid with this many columns}
+
+\item{labeller}{The labels shown in the strips, similar to
+\code{ggplot2::labeller()}. One of:
+\itemize{
+\item a named character vector, such as \code{c("4" = "Four cylinders")}, which
+looks up each value by its name. Values not in the vector keep their
+own label.
+\item a function that takes the values as a character vector and returns
+their labels, one for each.
+\item a list with one of the above per faceting variable, named as the
+variable is written in \code{rows} or \code{cols}, such as
+\code{list(cyl = c("4" = "Four"), gear = function(x) paste(x, "gears"))}.
+Variables not in the list keep their own labels.
+}}
 }
 \value{
 Modified glyph_spec
@@ -25,6 +46,34 @@ Modified glyph_spec
 \description{
 Splits a plot into small multiples, one panel for each value of
 \code{rows}, \code{cols}, or both. Panels share their axes unless \code{free_scales}
-lets them vary. With a single faceting variable, \code{wrap} sets how many
-panels go in each row.
+lets them vary.
+
+With both \code{rows} and \code{cols}, panels form a grid, as in ggplot2's
+\code{facet_grid()}: column labels go in a strip across the top and row
+labels in a strip down the right side. With \code{rows} alone, panels stack in
+one column with their labels on the right. With \code{cols} alone, or with
+\code{wrap}, panels wrap into rows with each label in a strip on top.
+
+Shared axes are drawn once, on the outer panels: the y axis on the left
+column and the x axis on the bottom row. A strip shows the value alone,
+such as "4", unless \code{labeller} gives another label. Strip font size,
+weight and colours are theme tokens (see \code{\link[=theme_tokens]{theme_tokens()}}).
+}
+\examples{
+p <- glyph(mtcars, x = wt, y = mpg) |> mark_point()
+
+# Columns by gear in a strip on top, rows by cyl in a strip on the right.
+p |> facet(rows = cyl, cols = gear)
+
+# One variable: panels wrap, with labels on top.
+p |> facet(cols = cyl, wrap = 3)
+
+# Relabel some values with a named vector. 8 keeps its own label.
+p |> facet(cols = cyl, labeller = c("4" = "Four cylinders", "6" = "Six cylinders"))
+
+# A labeller per variable: a lookup for cyl, a function for gear.
+p |> facet(rows = cyl, cols = gear, labeller = list(
+  cyl = c("4" = "Four", "6" = "Six", "8" = "Eight"),
+  gear = function(x) paste(x, "gears")
+))
 }

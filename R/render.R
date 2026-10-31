@@ -262,16 +262,58 @@ resolve_facets <- function(facets, data) {
   data_out <- data
   for (fn in names(generated)) data_out[[fn]] <- generated[[fn]]
 
+  labels <- list(
+    cols = facet_labels(data_out, cols_field, facets$cols$expr, facets$labeller),
+    rows = facet_labels(data_out, rows_field, facets$rows$expr, facets$labeller)
+  )
+  labels <- Filter(Negate(is.null), labels)
+
   list(
     facets = list(
       cols        = cols_field,
       rows        = rows_field,
       free_scales = facets$free_scales,
-      wrap        = facets$wrap
+      wrap        = facets$wrap,
+      labels      = if (length(labels)) labels
     ),
     data = data_out,
     generated = generated
   )
+}
+
+# The strip labels a labeller (see facet()) gives the values of one faceting
+# variable: list(values, labels), with the values sent as the data sends
+# them, so the browser can look each panel's value up. Only values the
+# labeller relabels are sent; the rest keep their own label. NULL when there
+# is nothing to relabel.
+#' @noRd
+facet_labels <- function(data, field, variable, labeller) {
+  if (is.null(field) || is.null(labeller) || is.null(data) || !field %in% names(data)) return(NULL)
+  if (is.list(labeller) && !is.function(labeller)) labeller <- labeller[[variable]]
+  if (is.null(labeller)) return(NULL)
+
+  values <- unique(data[[field]])
+  values <- values[!is.na(values)]
+  if (!length(values)) return(NULL)
+  # Each value as R prints it.
+  text <- if (is_temporal(values)) format(values) else as.character(values)
+
+  if (is.function(labeller)) {
+    labels <- labeller(text)
+    if (length(labels) != length(text)) {
+      cli::cli_abort("The labeller for {.code {variable}} returned {length(labels)} label{?s} for {length(text)} value{?s}.")
+    }
+    labels <- as.character(labels)
+  } else {
+    labels <- unname(labeller[text])
+  }
+  keep <- !is.na(labels)
+  if (!any(keep)) return(NULL)
+
+  values <- values[keep]
+  sent <- if (is_temporal(values)) temporal_ms(values) else if (is.factor(values)) as.character(values) else values
+  # As arrays, even for one value.
+  list(values = I(sent), labels = I(labels[keep]))
 }
 
 #' @noRd

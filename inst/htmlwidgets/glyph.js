@@ -305,12 +305,14 @@ function renderSpecInto(container, spec, opts) {
     .attr("width", W).attr("height", H)
     .attr("fill", theme.bg || "#fff");
 
+  // A facet panel sets its own padding (see renderFacets()).
+  const pad = opts.pad || { top: topPad, right: rightPad, bottom: basePad, left: basePad };
   const plotArea = svg.append("g")
     .attr("class", "glyph-plot")
-    .attr("transform", `translate(${basePad}, ${topPad})`);
+    .attr("transform", `translate(${pad.left}, ${pad.top})`);
 
-  const innerW = W - basePad - rightPad;
-  const innerH = H - topPad - basePad;
+  const innerW = W - pad.left - pad.right;
+  const innerH = H - pad.top - pad.bottom;
   const data = opts.data || spec.data?.values || [];
 
   // --- Build scales ---
@@ -369,7 +371,7 @@ function renderSpecInto(container, spec, opts) {
   }
 
   // --- Draw axes ---
-  drawAxes(plotArea, scales, innerW, innerH, theme, spec.scales);
+  drawAxes(plotArea, scales, innerW, innerH, theme, spec.scales, opts.axes);
 
   // --- Crossfilter plumbing ---
   let externalListener = null;
@@ -655,15 +657,76 @@ function sharedAxesFromFree(free) {
   return "both"; // "none" (default)
 }
 
+// The position scales a panel's marks draw on, as renderSpecInto() builds
+// them, on a nominal range: enough to know an axis's tick labels.
+function positionScales(spec, forced) {
+  const data = spec.data?.values || [];
+  const marks = spec.marks || [];
+  const out = {};
+  for (const axis of ["x", "y"]) {
+    const extent = unionExtents(marks.map(m => markExtent(m, (m.data && m.data.values) || data, axis)));
+    const mark = marks.find(m => m.encoding?.[axis]?.field);
+    if (mark) {
+      out[axis] = buildScale(mark.encoding[axis], (mark.data && mark.data.values) || data,
+        axis === "x" ? [0, 360] : [180, 0], spec.scales?.[axis], forced[axis], extent);
+    }
+  }
+  return out;
+}
+
+// The size of the widest y tick label and of the widest and tallest x tick
+// label over the given panels, measured as drawAxes() draws them.
+function tickLabelSizes(container, specs, forced, theme) {
+  const svg = d3.select(container).append("svg")
+    .style("position", "absolute").style("visibility", "hidden")
+    .attr("width", 200).attr("height", 200);
+  const size = { yW: 0, xW: 0, xH: 0 };
+  for (const spec of specs) {
+    const g = svg.append("g");
+    drawAxes(g, positionScales(spec, forced), 360, 180, theme, null, { titles: false });
+    g.selectAll(".axis-y .tick text").each(function() { size.yW = Math.max(size.yW, this.getBBox().width); });
+    g.selectAll(".axis-x .tick text").each(function() {
+      const b = this.getBBox();
+      size.xW = Math.max(size.xW, b.width);
+      size.xH = Math.max(size.xH, b.height);
+    });
+    g.remove();
+  }
+  svg.remove();
+  return size;
+}
+
+// The number of columns to wrap `n` panels into in a W x H widget: the one
+// that leaves room for the largest 3:2 panels. Fewer rows wins a tie.
+function wrapColumns(n, W, H) {
+  let best = 1, bestSize = -1;
+  for (let c = 1; c <= n; c++) {
+    const size = Math.min(W / c / 1.5, H / Math.ceil(n / c));
+    if (size > bestSize + 0.5 || (Math.abs(size - bestSize) <= 0.5 && Math.ceil(n / c) < Math.ceil(n / best))) {
+      best = c;
+      bestSize = size;
+    }
+  }
+  return best;
+}
+
 // `slot` collects the panels' selections, one child slot per panel.
+//
+// Panels, strips and axis titles fill the widget's W x H, laid out as in
+// ggplot2. With rows and cols, column labels go in a strip across the top
+// and row labels in a strip down the right side. With rows alone, panels
+// stack in one column labelled on the right. With cols alone, or with
+// `wrap`, panels wrap into rows with a strip on top of each. A shared axis
+// is drawn once, on the outer panels (y on the left, x along the bottom),
+// with its title once for the whole grid, and every panel's plot area is
+// the same size.
 function renderFacets(container, spec, fallbackW, fallbackH, slot) {
   const facets = spec.facets;
   const data = spec.data?.values || [];
+  const theme = spec.theme || {};
   const colsField = facets.cols;
   const rowsField = facets.rows;
-
-  let cellSpecs = []; // { label, match, row, col }
-  let rows, cols;
+  const W = fallbackW || 600, H = fallbackH || 400;
 
   // A field's values, one per panel, as [key, value] pairs. Dates are
   // compared and ordered by their time (valueKey()), and panels match rows by
@@ -676,44 +739,62 @@ function renderFacets(container, spec, fallbackW, fallbackH, slot) {
     return (dates ? keys.sort((a, b) => a - b) : keys.sort()).map(k => [k, byKey.get(k)]);
   };
 
+  // A strip shows the value alone, or the label facet(labeller =) gave it
+  // (sent by value; see facet_labels() in R/render.R).
+  const labelMaps = {};
+  for (const which of ["rows", "cols"]) {
+    const l = facets.labels && facets.labels[which];
+    if (!l) continue;
+    const values = columnArray(l.values), labels = columnArray(l.labels);
+    labelMaps[which] = new Map(values.map((v, i) => [v, labels[i]]));
+  }
+  const labelOf = (which, v) => {
+    const m = labelMaps[which];
+    if (m && m.has(valueKey(v))) return m.get(valueKey(v));
+    return v === null || v === undefined ? "NA" : String(formatValue(v));
+  };
+
+  // Each panel: its place in the grid, which rows it draws, and its labels.
+  const cells = [];
+  const topStrips = [], rightStrips = [];
+  let rows, cols, wrapped = false;
   if (colsField && rowsField) {
     const colVals = panelValues(colsField);
     const rowVals = panelValues(rowsField);
     rowVals.forEach(([rk, rv], ri) => {
       colVals.forEach(([ck, cv], ci) => {
-        cellSpecs.push({
-          label: `${rowsField}=${formatValue(rv)}, ${colsField}=${formatValue(cv)}`,
+        cells.push({
           match: d => valueKey(d[rowsField]) === rk && valueKey(d[colsField]) === ck,
           row: ri, col: ci
         });
       });
     });
+    colVals.forEach(([, v], ci) => topStrips.push({ col: ci, label: labelOf("cols", v) }));
+    rowVals.forEach(([, v], ri) => rightStrips.push({ row: ri, label: labelOf("rows", v) }));
     rows = rowVals.length;
     cols = colVals.length;
+  } else if (rowsField && !facets.wrap) {
+    const vals = panelValues(rowsField);
+    vals.forEach(([k, v], i) => {
+      cells.push({ match: d => valueKey(d[rowsField]) === k, row: i, col: 0 });
+      rightStrips.push({ row: i, label: labelOf("rows", v) });
+    });
+    rows = vals.length;
+    cols = 1;
   } else {
     const field = colsField || rowsField;
+    const which = colsField ? "cols" : "rows";
     const vals = panelValues(field);
-    cols = facets.wrap || Math.ceil(Math.sqrt(vals.length));
+    cols = Math.max(1, Math.min(vals.length, facets.wrap || wrapColumns(vals.length, W, H)));
     vals.forEach(([k, v], i) => {
-      cellSpecs.push({
-        label: `${field} = ${formatValue(v)}`,
+      cells.push({
         match: d => valueKey(d[field]) === k,
-        row: Math.floor(i / cols), col: i % cols
+        row: Math.floor(i / cols), col: i % cols, label: labelOf(which, v)
       });
     });
     rows = Math.ceil(vals.length / cols);
+    wrapped = true;
   }
-
-  const gap = 16;
-  const cellW = Math.max(120, ((fallbackW || 600) - gap * (cols - 1)) / cols);
-  const cellH = Math.max(100, ((fallbackH || 400) - gap * (rows - 1)) / rows);
-
-  const wrap = d3.select(container).append("div")
-    .attr("class", "glyph-facets")
-    .style("display", "grid")
-    .style("grid-template-columns", `repeat(${cols}, ${cellW}px)`)
-    .style("grid-template-rows", `repeat(${rows}, auto)`)
-    .style("gap", `${gap}px`);
 
   // Build a synthetic per-facet spec (same marks/scales/theme). Each mark
   // keeps its own resolved `data` — generated columns from computed
@@ -723,11 +804,14 @@ function renderFacets(container, spec, fallbackW, fallbackH, slot) {
   // the shared top-level data. That keeps computed mappings and
   // NA-dropping working the same way inside facet() as in an unfaceted
   // plot; a mark with no data of its own still falls back to filtering the
-  // shared panel-level data, same as before.
-  const facetSpecs = cellSpecs.map(cs => Object.assign({}, spec, {
+  // shared panel-level data, same as before. The plot's title is drawn once,
+  // above the panels.
+  const panelTheme = Object.assign({}, theme, { title: null });
+  const facetSpecs = cells.map(cs => Object.assign({}, spec, {
     data: { values: data.filter(cs.match) },
     facets: null,
     layout: null,
+    theme: panelTheme,
     marks: (spec.marks || []).map(m => {
       const markData = (m.data && m.data.values) || data;
       return Object.assign({}, m, { data: { values: markData.filter(cs.match) } });
@@ -736,28 +820,146 @@ function renderFacets(container, spec, fallbackW, fallbackH, slot) {
 
   const sharedAxes = sharedAxesFromFree(facets.free_scales);
   const forceDomain = computeSharedDomains(facetSpecs, sharedAxes);
+  const sharedX = sharedAxes === "both" || sharedAxes === "x";
+  const sharedY = sharedAxes === "both" || sharedAxes === "y";
 
-  cellSpecs.forEach((cs, i) => {
+  // Tick labels: y on the left column (every column when y is free), x on
+  // the lowest panel of each column (every panel when x is free).
+  const at = new Set(cells.map(c => c.row + "," + c.col));
+  cells.forEach(c => {
+    c.yLabels = !sharedY || c.col === 0;
+    c.xLabels = !sharedX || !at.has((c.row + 1) + "," + c.col);
+  });
+  const colY = d3.range(cols).map(ci => cells.some(c => c.col === ci && c.yLabels));
+  const rowX = d3.range(rows).map(ri => cells.some(c => c.row === ri && c.xLabels));
+
+  // Sizes, in px.
+  const fontSize = theme.font_size || 12;
+  const axisFont = fontSize * 0.85;
+  const stripFont = theme.strip_size || Math.round(fontSize * 0.9);
+  const stripH = Math.ceil(stripFont * 1.25 + 8);
+  const gap = 6;
+  const ticks = tickLabelSizes(container, sharedY && sharedX ? facetSpecs.slice(0, 1) : facetSpecs, forceDomain, panelTheme);
+  const yAxisW = Math.ceil(ticks.yW) + 12;
+  const xAxisH = Math.ceil(ticks.xH) + 11;
+  // Room for half an x tick label each side, so the end labels of
+  // neighbouring panels don't meet.
+  const padX = Math.max(6, Math.ceil(ticks.xW / 2) + 2);
+  const padTop = wrapped ? stripH + 3 : 6;
+  const padBottom = 6;
+  const xLabel = spec.scales?.x?.label, yLabel = spec.scales?.y?.label;
+  const xTitleH = xLabel ? Math.ceil(axisFont * 1.2) + 6 : 0;
+  const yTitleW = yLabel ? Math.ceil(axisFont * 1.2) + 6 : 0;
+  const titleH = theme.title ? Math.ceil(fontSize * (theme.title_size || 1.4) * 1.3) + 6 : 0;
+  const topBand = topStrips.length ? stripH + 1 : 0;
+  const rightExtra = rightStrips.length ? Math.max(padX, 3 + stripH) : padX;
+
+  const padL = colY.map(y => y ? yAxisW : padX);
+  const padB = rowX.map(x => x ? xAxisH : padBottom);
+  const innerW = Math.max(30, (W - yTitleW - d3.sum(padL) - (cols - 1) * (padX + gap) - rightExtra) / cols);
+  const innerH = Math.max(30, (H - titleH - topBand - xTitleH - (rows - 1) * gap - rows * padTop - d3.sum(padB)) / rows);
+
+  const cellX = [], cellW = [];
+  let x = yTitleW;
+  for (let ci = 0; ci < cols; ci++) {
+    cellX.push(x);
+    cellW.push(padL[ci] + innerW + padX);
+    x += cellW[ci] + gap;
+  }
+  const cellY = [], cellH = [];
+  let y = titleH + topBand;
+  for (let ri = 0; ri < rows; ri++) {
+    cellY.push(y);
+    cellH.push(padTop + innerH + padB[ri]);
+    y += cellH[ri] + gap;
+  }
+  // The plot area of column ci and row ri.
+  const plotX = ci => cellX[ci] + padL[ci];
+  const plotY = ri => cellY[ri] + padTop;
+
+  const wrap = d3.select(container).append("div")
+    .attr("class", "glyph-facets")
+    .style("position", "relative")
+    .style("width", `${W}px`)
+    .style("height", `${H}px`)
+    .style("overflow", "hidden")
+    .style("background", theme.bg || "#fff");
+
+  cells.forEach((cs, i) => {
     const cell = wrap.append("div")
-      .style("grid-column", cs.col + 1)
-      .style("grid-row", cs.row + 1);
-
-    cell.append("div")
-      .attr("class", "glyph-facet-label")
-      .style("font-family", "system-ui")
-      .style("font-size", "11px")
-      .style("font-weight", 600)
-      .style("color", (spec.theme && spec.theme.fg) || "#333")
-      .style("margin-bottom", "2px")
-      .text(cs.label);
+      .attr("class", "glyph-facet-panel")
+      .style("position", "absolute")
+      .style("left", `${cellX[cs.col]}px`)
+      .style("top", `${cellY[cs.row]}px`)
+      .style("width", `${cellW[cs.col]}px`)
+      .style("height", `${cellH[cs.row]}px`);
 
     renderSpecInto(cell.node(), facetSpecs[i], {
-      width: cellW,
-      height: cellH - 18,
+      width: cellW[cs.col],
+      height: cellH[cs.row],
+      pad: { top: padTop, right: padX, bottom: padB[cs.row], left: padL[cs.col] },
+      axes: { x: cs.xLabels ? "labels" : "ticks", y: cs.yLabels ? "labels" : "ticks", titles: false },
       forceDomain: forceDomain,
       selectionSlot: childSlot(slot, "plot")
     });
   });
+
+  // Strips: across the top of a column or a wrapped panel, or down the
+  // right of a row, reading top to bottom.
+  const strip = (cls, left, top, width, height, label, vertical) => wrap.append("div")
+    .attr("class", `glyph-facet-label glyph-strip ${cls}`)
+    .attr("title", label)
+    .style("position", "absolute")
+    .style("left", `${left}px`).style("top", `${top}px`)
+    .style("width", `${width}px`).style("height", `${height}px`)
+    .style("box-sizing", "border-box")
+    .style("display", "flex").style("align-items", "center").style("justify-content", "center")
+    .style("padding", vertical ? "4px 0" : "0 4px")
+    .style("overflow", "hidden").style("white-space", "nowrap").style("text-overflow", "ellipsis")
+    .style("writing-mode", vertical ? "vertical-rl" : null)
+    .style("background", theme.strip_bg || "#f0f0f0")
+    .style("color", theme.strip_fg || theme.fg || "#333")
+    .style("font-family", theme.font || "system-ui")
+    .style("font-size", `${stripFont}px`)
+    .style("font-weight", theme.strip_weight ?? 600)
+    .style("line-height", 1.25)
+    .text(label);
+  if (wrapped) {
+    cells.forEach(cs => strip("glyph-strip-top", plotX(cs.col), cellY[cs.row], innerW, stripH, cs.label));
+  }
+  topStrips.forEach(t => strip("glyph-strip-top", plotX(t.col), titleH, innerW, stripH, t.label));
+  rightStrips.forEach(r => strip("glyph-strip-right", plotX(cols - 1) + innerW + 3, plotY(r.row), stripH, innerH, r.label, true));
+
+  // Axis titles, once for the grid, centred on the panels' plot areas.
+  const textStyle = sel => sel
+    .style("position", "absolute")
+    .style("font-family", theme.font || "system-ui")
+    .style("font-size", `${axisFont}px`)
+    .style("color", theme.fg || "#333")
+    .style("white-space", "nowrap")
+    .style("line-height", 1.2);
+  const left = plotX(0), right = plotX(cols - 1) + innerW;
+  const top = plotY(0), bottom = plotY(rows - 1) + innerH;
+  if (xLabel) {
+    wrap.append("div").attr("class", "glyph-facet-axis-title glyph-facet-axis-title-x").call(textStyle)
+      .style("left", `${left}px`).style("width", `${right - left}px`)
+      .style("bottom", "2px").style("text-align", "center")
+      .text(xLabel);
+  }
+  if (yLabel) {
+    wrap.append("div").attr("class", "glyph-facet-axis-title glyph-facet-axis-title-y").call(textStyle)
+      .style("left", "2px").style("top", `${top}px`).style("height", `${bottom - top}px`)
+      .style("writing-mode", "vertical-rl").style("transform", "rotate(180deg)")
+      .style("text-align", "center")
+      .text(yLabel);
+  }
+  if (theme.title) {
+    wrap.append("div").attr("class", "glyph-facet-title").call(textStyle)
+      .style("left", "0px").style("width", `${W}px`).style("top", "2px").style("text-align", "center")
+      .style("font-size", `${fontSize * (theme.title_size || 1.4)}px`)
+      .style("font-weight", 600)
+      .text(theme.title);
+  }
 }
 
 // ---- Scale builder ----------------------------------------------------------
@@ -819,6 +1021,13 @@ function buildScale(encoding, data, range, scaleOpts, forcedDomain, dataExtent) 
 
 // ---- Grid -------------------------------------------------------------------
 
+// How many ticks an axis of `length` px gets: 6, or fewer on a short axis
+// (a small facet panel), so its labels don't run into each other. Grid lines
+// follow the same ticks.
+function tickCount(axis, length) {
+  return Math.max(2, Math.min(6, Math.floor(length / (axis === "x" ? 60 : 30))));
+}
+
 function drawGrid(g, scales, w, h, theme) {
   const gridColor = theme.grid_color || "#e5e5e5";
   const showX = theme.grid === true || theme.grid === "x";
@@ -828,7 +1037,7 @@ function drawGrid(g, scales, w, h, theme) {
     g.append("g")
       .attr("class", "grid-y")
       .selectAll("line")
-      .data(scales.y.ticks ? scales.y.ticks(6) : [])
+      .data(scales.y.ticks ? scales.y.ticks(tickCount("y", h)) : [])
       .join("line")
       .attr("x1", 0).attr("x2", w)
       .attr("y1", d => scales.y(d))
@@ -841,7 +1050,7 @@ function drawGrid(g, scales, w, h, theme) {
     g.append("g")
       .attr("class", "grid-x")
       .selectAll("line")
-      .data(scales.x.ticks(6))
+      .data(scales.x.ticks(tickCount("x", w)))
       .join("line")
       .attr("x1", d => scales.x(d))
       .attr("x2", d => scales.x(d))
@@ -853,7 +1062,11 @@ function drawGrid(g, scales, w, h, theme) {
 
 // ---- Axes -------------------------------------------------------------------
 
-function drawAxes(g, scales, w, h, theme, scaleSpecs) {
+// `show` says what to draw on each axis, as {x, y, titles}: "labels" (the
+// default) draws ticks and their labels, "ticks" the ticks alone, as on the
+// inner panels of a facet grid, and titles: false leaves out the axis titles.
+function drawAxes(g, scales, w, h, theme, scaleSpecs, show) {
+  show = Object.assign({ x: "labels", y: "labels", titles: true }, show);
   const font = theme.font || "system-ui";
   const fontSize = (theme.font_size || 12) * 0.85;
   const fg = theme.fg || "#333";
@@ -862,7 +1075,8 @@ function drawAxes(g, scales, w, h, theme, scaleSpecs) {
     // Groups on a band axis can be dates (a boxplot by date, say).
     const xAxis = scales.x.bandwidth
       ? d3.axisBottom(scales.x).tickFormat(formatValue)
-      : d3.axisBottom(scales.x).ticks(6);
+      : d3.axisBottom(scales.x).ticks(tickCount("x", w));
+    if (show.x === "ticks") xAxis.tickFormat("");
 
     const xG = g.append("g")
       .attr("class", "axis-x")
@@ -876,7 +1090,7 @@ function drawAxes(g, scales, w, h, theme, scaleSpecs) {
 
     // Axis label
     const xLabel = scaleSpecs?.x?.label;
-    if (xLabel) {
+    if (xLabel && show.titles) {
       g.append("text")
         .attr("x", w / 2).attr("y", h + 35)
         .attr("text-anchor", "middle")
@@ -890,7 +1104,8 @@ function drawAxes(g, scales, w, h, theme, scaleSpecs) {
   if (scales.y) {
     const yAxis = scales.y.bandwidth
       ? d3.axisLeft(scales.y).tickFormat(formatValue)
-      : d3.axisLeft(scales.y).ticks(6);
+      : d3.axisLeft(scales.y).ticks(tickCount("y", h));
+    if (show.y === "ticks") yAxis.tickFormat("");
     const yG = g.append("g")
       .attr("class", "axis-y")
       .call(yAxis);
@@ -901,7 +1116,7 @@ function drawAxes(g, scales, w, h, theme, scaleSpecs) {
       .attr("fill", fg);
 
     const yLabel = scaleSpecs?.y?.label;
-    if (yLabel) {
+    if (yLabel && show.titles) {
       g.append("text")
         .attr("transform", `rotate(-90)`)
         .attr("x", -h / 2).attr("y", -30)
