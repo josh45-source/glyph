@@ -472,3 +472,92 @@ test_that("tooltips show above dashboard cards, next to the pointer (#43)", {
   expect_equal(full$from_pointer, c(12, -12), tolerance = 1.5)
   expect_length(page_errors(s), 0)
 })
+
+test_that("facet strips sit on top and on the right, with outer axes only (#46)", {
+  skip_if_no_browser()
+  p <- glyph(mtcars, x = wt, y = mpg) |> mark_point()
+  s <- open_page(save_widgets(list(
+    grid = render(p |> facet(rows = cyl, cols = gear)),
+    labelled = render(p |> facet(rows = cyl, cols = gear, labeller = list(
+      cyl = c("4" = "Four cylinders"), gear = function(x) paste(x, "gears")))),
+    wrapped = render(p |> facet(cols = carb, wrap = 4)),
+    dark = render(p |> facet(cols = am) |> theme_tokens(preset = "dark", strip_size = 14, strip_weight = 400))
+  )), width = 700, height = 1800)
+
+  # Strip text and boxes, and each panel's plot area (its axis lines), in
+  # page coordinates, for the plot in div `id`.
+  layout <- function(id) js(s, sprintf("(() => {
+    const box = e => { const b = e.getBoundingClientRect(); return [b.left, b.top, b.right, b.bottom]; };
+    const root = document.querySelector('#%s');
+    const strips = cls => [...root.querySelectorAll('.glyph-strip-' + cls)].map(e => ({ text: e.textContent, box: box(e),
+      vertical: getComputedStyle(e).writingMode.startsWith('vertical') }));
+    const panels = [...root.querySelectorAll('.glyph-facet-panel')].map(p => {
+      const x = p.querySelector('.axis-x .domain').getBoundingClientRect(), y = p.querySelector('.axis-y .domain').getBoundingClientRect();
+      return { plot: [x.left, y.top, x.right, y.bottom],
+               xLabels: [...p.querySelectorAll('.axis-x .tick text')].some(t => t.textContent !== ''),
+               yLabels: [...p.querySelectorAll('.axis-y .tick text')].some(t => t.textContent !== '') };
+    });
+    const w = root.querySelector('.html-widget');
+    return { top: strips('top'), right: strips('right'), panels, widget: box(w),
+             overflow: [w.scrollWidth - w.clientWidth, w.scrollHeight - w.clientHeight],
+             titles: [...root.querySelectorAll('.glyph-facet-axis-title')].map(e => e.textContent) };
+  })()", id))
+  num <- function(l, k) vapply(l, function(e) e[[k]], numeric(1))
+  boxes <- function(l) do.call(rbind, lapply(l, function(e) unlist(e$box)))
+  plots <- function(l) do.call(rbind, lapply(l, function(e) unlist(e$plot)))
+
+  g <- layout("grid")
+  # Gear across the top, cyl down the right, rotated; the value alone.
+  expect_identical(vapply(g$top, `[[`, "", "text"), c("3", "4", "5"))
+  expect_identical(vapply(g$right, `[[`, "", "text"), c("4", "6", "8"))
+  expect_false(any(vapply(g$top, `[[`, TRUE, "vertical")))
+  expect_true(all(vapply(g$right, `[[`, TRUE, "vertical")))
+  # Nine panels of the same size, in rows of three.
+  pl <- plots(g$panels)
+  expect_equal(nrow(pl), 9)
+  expect_lt(diff(range(pl[, 3] - pl[, 1])), 1)
+  expect_lt(diff(range(pl[, 4] - pl[, 2])), 1)
+  # Column strips span their column's plot area just above the top row;
+  # row strips span their row's plot area just right of the last column.
+  top <- boxes(g$top); right <- boxes(g$right)
+  expect_equal(top[, 1], pl[1:3, 1], tolerance = 1)
+  expect_equal(top[, 3], pl[1:3, 3], tolerance = 1)
+  expect_true(all(top[, 4] <= pl[1:3, 2] & pl[1:3, 2] - top[, 4] < 10))
+  expect_equal(right[, 2], pl[c(3, 6, 9), 2], tolerance = 1)
+  expect_equal(right[, 4], pl[c(3, 6, 9), 4], tolerance = 1)
+  expect_true(all(right[, 1] >= pl[c(3, 6, 9), 3] & right[, 1] - pl[c(3, 6, 9), 3] < 10))
+  # Panels sit close together: under 30px between plot areas (about 100px
+  # before #46).
+  expect_lt(pl[2, 1] - pl[1, 3], 30)
+  expect_lt(pl[4, 2] - pl[1, 4], 30)
+  # Tick labels on the left column and the bottom row only, and the axis
+  # titles once.
+  expect_identical(vapply(g$panels, `[[`, TRUE, "yLabels"), rep(c(TRUE, FALSE, FALSE), 3))
+  expect_identical(vapply(g$panels, `[[`, TRUE, "xLabels"), rep(c(FALSE, TRUE), c(6, 3)))
+  expect_setequal(unlist(g$titles), c("wt", "mpg"))
+  # It all fits the widget.
+  expect_identical(unlist(g$overflow), c(0L, 0L))
+  expect_true(all(right[, 3] <= g$widget[[3]]))
+
+  # A labeller: a lookup for cyl (6 and 8 keep their values), a function
+  # for gear.
+  l <- layout("labelled")
+  expect_identical(vapply(l$top, `[[`, "", "text"), c("3 gears", "4 gears", "5 gears"))
+  expect_identical(vapply(l$right, `[[`, "", "text"), c("Four cylinders", "6", "8"))
+
+  # cols alone, wrapped: a strip on top of each panel, x labels on the
+  # lowest panel of each column (here, 3 and 4 have no panel below them).
+  w <- layout("wrapped")
+  expect_identical(vapply(w$top, `[[`, "", "text"), c("1", "2", "3", "4", "6", "8"))
+  expect_length(w$right, 0)
+  expect_identical(vapply(w$panels, `[[`, TRUE, "xLabels"), c(FALSE, FALSE, TRUE, TRUE, TRUE, TRUE))
+  expect_identical(vapply(w$panels, `[[`, TRUE, "yLabels"), c(TRUE, FALSE, FALSE, FALSE, TRUE, FALSE))
+  wp <- plots(w$panels); wt <- boxes(w$top)
+  expect_true(all(wt[, 4] <= wp[, 2] & wp[, 2] - wt[, 4] < 10))
+
+  # Strip tokens: the dark preset's colours, with the size and weight set.
+  style <- js(s, "(() => { const c = getComputedStyle(document.querySelector('#dark .glyph-strip'));
+                           return [c.fontSize, c.fontWeight, c.color, c.backgroundColor]; })()")
+  expect_identical(unlist(style), c("14px", "400", "rgb(224, 224, 224)", "rgb(42, 42, 74)"))
+  expect_length(page_errors(s), 0)
+})

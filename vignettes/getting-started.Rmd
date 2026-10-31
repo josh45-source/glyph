@@ -122,6 +122,21 @@ glyph(mtcars, x = wt, y = mpg) |>
   facet(cols = cyl)
 ```
 
+With both, column labels go in a strip across the top and row labels in a
+strip down the right side. A `labeller` changes what the strips say: here a
+named vector for `cyl`, where 8 keeps its own label, and a function for
+`gear`. The strips' font size, weight and colours are theme tokens.
+
+```{r}
+glyph(mtcars, x = wt, y = mpg) |>
+  mark_point() |>
+  facet(rows = cyl, cols = gear, labeller = list(
+    cyl = c("4" = "4 cylinders", "6" = "6 cylinders"),
+    gear = function(x) paste(x, "gears")
+  )) |>
+  theme_tokens(strip_size = 12, strip_bg = "#e8eef8")
+```
+
 ## 7. Marginal distributions
 
 [`marginals()`](https://josh45-source.github.io/glyph/reference/marginals.html)

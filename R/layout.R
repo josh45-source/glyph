@@ -123,8 +123,18 @@ inset <- function(spec, inset, position = "top-right") {
 #'
 #' @description Splits a plot into small multiples, one panel for each value of
 #'   `rows`, `cols`, or both. Panels share their axes unless `free_scales`
-#'   lets them vary. With a single faceting variable, `wrap` sets how many
-#'   panels go in each row.
+#'   lets them vary.
+#'
+#'   With both `rows` and `cols`, panels form a grid, as in ggplot2's
+#'   `facet_grid()`: column labels go in a strip across the top and row
+#'   labels in a strip down the right side. With `rows` alone, panels stack in
+#'   one column with their labels on the right. With `cols` alone, or with
+#'   `wrap`, panels wrap into rows with each label in a strip on top.
+#'
+#'   Shared axes are drawn once, on the outer panels: the y axis on the left
+#'   column and the x axis on the bottom row. A strip shows the value alone,
+#'   such as "4", unless `labeller` gives another label. Strip font size,
+#'   weight and colours are theme tokens (see [theme_tokens()]).
 #'
 #' @param spec A glyph_spec
 #' @param rows Row faceting variable: a bare column name, a computed
@@ -133,10 +143,39 @@ inset <- function(spec, inset, position = "top-right") {
 #'   expression, or \code{NULL}
 #' @param free_scales "none", "x", "y", "both"
 #' @param wrap If only one variable, wrap into a grid with this many columns
+#' @param labeller The labels shown in the strips, similar to
+#'   `ggplot2::labeller()`. One of:
+#'   * a named character vector, such as `c("4" = "Four cylinders")`, which
+#'     looks up each value by its name. Values not in the vector keep their
+#'     own label.
+#'   * a function that takes the values as a character vector and returns
+#'     their labels, one for each.
+#'   * a list with one of the above per faceting variable, named as the
+#'     variable is written in `rows` or `cols`, such as
+#'     `list(cyl = c("4" = "Four"), gear = function(x) paste(x, "gears"))`.
+#'     Variables not in the list keep their own labels.
 #' @return Modified glyph_spec
 #' @export
+#'
+#' @examples
+#' p <- glyph(mtcars, x = wt, y = mpg) |> mark_point()
+#'
+#' # Columns by gear in a strip on top, rows by cyl in a strip on the right.
+#' p |> facet(rows = cyl, cols = gear)
+#'
+#' # One variable: panels wrap, with labels on top.
+#' p |> facet(cols = cyl, wrap = 3)
+#'
+#' # Relabel some values with a named vector. 8 keeps its own label.
+#' p |> facet(cols = cyl, labeller = c("4" = "Four cylinders", "6" = "Six cylinders"))
+#'
+#' # A labeller per variable: a lookup for cyl, a function for gear.
+#' p |> facet(rows = cyl, cols = gear, labeller = list(
+#'   cyl = c("4" = "Four", "6" = "Six", "8" = "Eight"),
+#'   gear = function(x) paste(x, "gears")
+#' ))
 facet <- function(spec, rows = NULL, cols = NULL,
-                  free_scales = "none", wrap = NULL) {
+                  free_scales = "none", wrap = NULL, labeller = NULL) {
   stopifnot(inherits(spec, "glyph_spec"))
 
   # Like aesthetic mappings (capture_mappings()), keep the quosure alongside
@@ -145,14 +184,46 @@ facet <- function(spec, rows = NULL, cols = NULL,
   # name that doesn't exist in the data.
   rows_q <- if (!missing(rows)) rlang::enquo(rows) else NULL
   cols_q <- if (!missing(cols)) rlang::enquo(cols) else NULL
+  rows_expr <- if (!is.null(rows_q)) rlang::as_label(rows_q)
+  cols_expr <- if (!is.null(cols_q)) rlang::as_label(cols_q)
+  check_labeller(labeller, c(rows_expr, cols_expr))
 
   spec$facets <- list(
-    rows        = if (!is.null(rows_q)) list(expr = rlang::as_label(rows_q), quosure = rows_q) else NULL,
-    cols        = if (!is.null(cols_q)) list(expr = rlang::as_label(cols_q), quosure = cols_q) else NULL,
+    rows        = if (!is.null(rows_q)) list(expr = rows_expr, quosure = rows_q) else NULL,
+    cols        = if (!is.null(cols_q)) list(expr = cols_expr, quosure = cols_q) else NULL,
     free_scales = match.arg(free_scales, c("none", "x", "y", "both")),
-    wrap        = wrap
+    wrap        = wrap,
+    labeller    = labeller
   )
   spec
+}
+
+# A labeller is NULL, a named character vector, a function, or a list of
+# those named by faceting variable.
+#' @noRd
+check_labeller <- function(labeller, variables, call = rlang::caller_env()) {
+  one <- function(x, what) {
+    if (is.null(x) || is.function(x)) return(invisible())
+    if (is.character(x) && !is.null(names(x)) && all(nzchar(names(x)))) return(invisible())
+    cli::cli_abort(c(
+      "{what} must be a named character vector or a function.",
+      "i" = 'For example {.code c("4" = "Four cylinders")} or {.code function(x) paste(x, "cylinders")}.'
+    ), call = call)
+  }
+  if (is.list(labeller) && !is.function(labeller)) {
+    unknown <- setdiff(names(labeller), variables)
+    if (is.null(names(labeller)) || !all(nzchar(names(labeller))) || length(unknown)) {
+      cli::cli_abort(c(
+        "A {.arg labeller} list must be named by faceting variable.",
+        "i" = "The faceting variables are {.val {variables}}.",
+        "x" = if (length(unknown)) "Not a faceting variable: {.val {unknown}}."
+      ), call = call)
+    }
+    for (nm in names(labeller)) one(labeller[[nm]], sprintf("The labeller for `%s`", nm))
+  } else {
+    one(labeller, "`labeller`")
+  }
+  invisible()
 }
 
 #' Draw a glyph layout when it is printed
